@@ -1,0 +1,68 @@
+You are an expert full-stack software architect and product builder. I want to build a **simple yet powerful hotel check-in software** for my property. Help me build this end-to-end.
+
+This is a web-based tool (or tablet-friendly mobile app) that will be used by hotel staff (front desk) to manage check-ins, capture guest information, and monitor real-time room availability.
+
+---
+
+## 🎫 Guest Check-In Flow
+
+Create a guest check-in form that captures the following information:
+
+- Full Name
+- Phone Number (preferably WhatsApp)
+- Address
+- Where they came from (City/Location)
+- Check-In Date (dd-mm-yyyy)
+- Check-In Time (hh:mm)
+- Nationality
+- Number of Males
+- Number of Females
+- Number of Children
+- Room Number allocated
+- Purpose of Visit
+- Destination/Going Back To
+- Digital Signature capture (touch input or image)
+
+The form should:
+- Validate mandatory fields
+- Store all entries in a searchable backend (Firebase, Supabase, or SQLite)
+- Auto-tag the room as "Occupied" once assigned
+
+---
+
+## 🛏️ Hotel Owner Dashboard (Real-Time Room Inventory View)
+
+Build a visual inventory grid showing room availability in real time. For example:
+
+| Room No | Type     | Status     |
+|---------|----------|------------|
+| 101     | Deluxe   | Available  |
+| 102     | Standard | Occupied   |
+| 103     | Suite    | Cleaning   |
+| ...     | ...      | ...        |
+
+Hotel staff should be able to:
+- View all rooms for a specific date
+- See which rooms are booked, available, under maintenance, or blocked
+- Search/filter by room type or status
+
+---
+
+## 🧠 Add Any Other Must-Have Features for v1
+
+Suggest any other essential features that should be part of v1 to make this operational and useful from day one. Think like a hotel owner:
+- View past check-ins
+- Export guest register (PDF or CSV)
+- Flag guests for repeat visits
+- Print check-in slip or invoice (optional)
+- Admin login with limited roles (e.g., staff vs. owner)
+
+---
+
+Please provide:
+1. A basic schema (ERD or JSON format) for storing guest data and room inventory
+2. High-level frontend structure (React, Next.js, or your recommendation)
+3. Backend suggestions (Firebase, Supabase, Node.js, etc.)
+4. Optionally: Starter code or open-source boilerplates that can speed up dev
+
+Let’s build this together step by step. Start by suggesting architecture and data model first.

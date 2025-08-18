@@ -7,6 +7,8 @@ export default function Header() {
     { href: "/dashboard", label: "Dashboard", id: "dashboard" },
     { href: "/check-in", label: "Check-in", id: "checkin" },
     { href: "/guests", label: "Guests", id: "guests" },
+    { href: "/rooms", label: "Rooms", id: "rooms" },
+    { href: "/calendar", label: "Calendar", id: "calendar" },
     { href: "/reports", label: "Reports", id: "reports" },
   ];
 

@@ -8,6 +8,8 @@ import Dashboard from "./pages/dashboard";
 import CheckIn from "./pages/check-in";
 import Guests from "./pages/guests";
 import Reports from "./pages/reports";
+import Rooms from "./pages/rooms";
+import Calendar from "./pages/calendar";
 import Header from "./components/header";
 
 function Router() {
@@ -19,6 +21,8 @@ function Router() {
         <Route path="/dashboard" component={Dashboard} />
         <Route path="/check-in" component={CheckIn} />
         <Route path="/guests" component={Guests} />
+        <Route path="/rooms" component={Rooms} />
+        <Route path="/calendar" component={Calendar} />
         <Route path="/reports" component={Reports} />
         <Route component={NotFound} />
       </Switch>
