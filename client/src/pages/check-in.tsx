@@ -18,6 +18,8 @@ const checkInFormSchema = insertGuestSchema.extend({
   roomId: z.string().min(1, "Room selection is required"),
   checkInDate: z.string().min(1, "Check-in date is required"),
   checkInTime: z.string().min(1, "Check-in time is required"),
+  checkOutDate: z.string().min(1, "Check-out date is required"),
+  checkOutTime: z.string().min(1, "Check-out time is required"),
 }).extend({
   signature: z.string().nullable().optional(),
 });
@@ -45,6 +47,8 @@ export default function CheckIn() {
       roomId: "",
       checkInDate: new Date().toISOString().split('T')[0],
       checkInTime: "15:00",
+      checkOutDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Tomorrow
+      checkOutTime: "11:00",
     },
   });
 
@@ -54,9 +58,10 @@ export default function CheckIn() {
 
   const completeCheckInMutation = useMutation({
     mutationFn: async (data: CheckInFormData) => {
-      const { roomId, checkInDate, checkInTime, signature, ...guestData } = data;
+      const { roomId, checkInDate, checkInTime, checkOutDate, checkOutTime, signature, ...guestData } = data;
       
       const checkInDateTime = new Date(`${checkInDate}T${checkInTime}`);
+      const checkOutDateTime = new Date(`${checkOutDate}T${checkOutTime}`);
       
       const payload = {
         guest: { ...guestData, signature },
@@ -64,6 +69,8 @@ export default function CheckIn() {
           roomId,
           checkInDate: checkInDateTime,
           checkInTime,
+          checkOutDate: checkOutDateTime,
+          checkOutTime,
         }
       };
 
@@ -247,7 +254,7 @@ export default function CheckIn() {
             {/* Check-in Details */}
             <div className="bg-gray-50 rounded-lg p-4">
               <h3 className="text-md font-medium text-gray-900 mb-4">Check-in Details</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <FormField
                   control={form.control}
                   name="checkInDate"
@@ -296,6 +303,36 @@ export default function CheckIn() {
                           ))}
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="checkOutDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Check-out Date <span className="text-red-500">*</span></FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} data-testid="input-checkout-date" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="checkOutTime"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Check-out Time <span className="text-red-500">*</span></FormLabel>
+                      <FormControl>
+                        <Input type="time" {...field} data-testid="input-checkout-time" />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

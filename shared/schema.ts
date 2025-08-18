@@ -44,6 +44,8 @@ export const checkIns = pgTable("check_ins", {
   roomId: varchar("room_id").notNull().references(() => rooms.id),
   checkInDate: timestamp("check_in_date").notNull(),
   checkInTime: text("check_in_time").notNull(),
+  checkOutDate: timestamp("check_out_date").notNull(),
+  checkOutTime: text("check_out_time").notNull(),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -88,6 +90,7 @@ export const insertCheckInSchema = createInsertSchema(checkIns).omit({
   isActive: true,
 }).extend({
   checkInDate: z.union([z.date(), z.string().transform((str) => new Date(str))]),
+  checkOutDate: z.union([z.date(), z.string().transform((str) => new Date(str))]),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;

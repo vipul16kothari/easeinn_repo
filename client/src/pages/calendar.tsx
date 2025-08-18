@@ -35,15 +35,20 @@ export default function CalendarPage() {
     
     activeCheckIns.forEach((checkIn: CheckIn & { guest: Guest; room: Room }) => {
       const checkInDate = new Date(checkIn.checkInDate);
+      const checkOutDate = new Date(checkIn.checkOutDate || checkIn.checkInDate);
       const roomId = checkIn.room.id;
       
       if (!bookings[roomId]) {
         bookings[roomId] = {};
       }
       
-      // For active check-ins, show them for today and future dates until checkout
+      // Show bookings from check-in date until check-out date (exclusive)
       dateRange.forEach(date => {
-        if (date >= checkInDate || isSameDay(date, checkInDate)) {
+        const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        const checkInOnly = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
+        const checkOutOnly = new Date(checkOutDate.getFullYear(), checkOutDate.getMonth(), checkOutDate.getDate());
+        
+        if (dateOnly >= checkInOnly && dateOnly < checkOutOnly) {
           const dateKey = format(date, 'yyyy-MM-dd');
           bookings[roomId][dateKey] = {
             guest: checkIn.guest,

@@ -163,7 +163,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const checkInValidationSchema = z.object({
         roomId: z.string().min(1),
         checkInDate: z.coerce.date(),
-        checkInTime: z.string()
+        checkInTime: z.string(),
+        checkOutDate: z.coerce.date(),
+        checkOutTime: z.string()
       });
       
       // Validate data
