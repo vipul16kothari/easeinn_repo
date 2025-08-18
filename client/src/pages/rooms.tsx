@@ -27,7 +27,7 @@ export default function RoomsPage() {
 
   const createRoomMutation = useMutation({
     mutationFn: async (roomData: InsertRoom) => {
-      return await apiRequest("/api/rooms", "POST", roomData);
+      return await apiRequest("POST", "/api/rooms", roomData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/rooms"] });
@@ -50,7 +50,7 @@ export default function RoomsPage() {
 
   const updateRoomStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      return await apiRequest(`/api/rooms/${id}/status`, "PATCH", { status });
+      return await apiRequest("PATCH", `/api/rooms/${id}/status`, { status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/rooms"] });

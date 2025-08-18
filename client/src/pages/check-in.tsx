@@ -67,7 +67,7 @@ export default function CheckIn() {
         }
       };
 
-      return await apiRequest("/api/complete-checkin", "POST", payload);
+      return await apiRequest("POST", "/api/complete-checkin", payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/rooms"] });
