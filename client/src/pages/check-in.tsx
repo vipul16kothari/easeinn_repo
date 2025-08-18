@@ -311,6 +311,7 @@ export default function CheckIn() {
                           min="0"
                           placeholder="0"
                           {...field}
+                          value={field.value || ""}
                           onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                           data-testid="input-males"
                         />
@@ -332,6 +333,7 @@ export default function CheckIn() {
                           min="0"
                           placeholder="0"
                           {...field}
+                          value={field.value || ""}
                           onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                           data-testid="input-females"
                         />
@@ -353,6 +355,7 @@ export default function CheckIn() {
                           min="0"
                           placeholder="0"
                           {...field}
+                          value={field.value || ""}
                           onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                           data-testid="input-children"
                         />
@@ -403,6 +406,7 @@ export default function CheckIn() {
                         <Input
                           placeholder="City/Location"
                           {...field}
+                          value={field.value || ""}
                           data-testid="input-destination"
                         />
                       </FormControl>

@@ -97,7 +97,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getGuests(search?: string, limit = 50, offset = 0): Promise<{ guests: (Guest & { room?: Room; checkInDate?: Date })[], total: number }> {
-    let query = db
+    let baseQuery = db
       .select({
         id: guests.id,
         fullName: guests.fullName,
@@ -120,21 +120,29 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(rooms, eq(checkIns.roomId, rooms.id))
       .orderBy(desc(guests.createdAt));
 
+    let results;
     if (search) {
-      query = query.where(
-        or(
-          ilike(guests.fullName, `%${search}%`),
-          ilike(guests.phone, `%${search}%`),
-          ilike(rooms.number, `%${search}%`)
+      results = await baseQuery
+        .where(
+          or(
+            ilike(guests.fullName, `%${search}%`),
+            ilike(guests.phone, `%${search}%`)
+          )
         )
-      );
+        .limit(limit)
+        .offset(offset);
+    } else {
+      results = await baseQuery.limit(limit).offset(offset);
     }
 
-    const results = await query.limit(limit).offset(offset);
     const totalCount = await db.select({ count: sql<number>`count(*)` }).from(guests);
     
     return {
-      guests: results,
+      guests: results.map(r => ({
+        ...r,
+        room: r.room || undefined,
+        checkInDate: r.checkInDate || undefined
+      })),
       total: totalCount[0].count
     };
   }
@@ -153,22 +161,34 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCheckIns(): Promise<(CheckIn & { guest: Guest; room: Room })[]> {
-    return await db
-      .select()
+    const results = await db
+      .select({
+        checkIn: checkIns,
+        guest: guests,
+        room: rooms
+      })
       .from(checkIns)
       .innerJoin(guests, eq(checkIns.guestId, guests.id))
       .innerJoin(rooms, eq(checkIns.roomId, rooms.id))
       .orderBy(desc(checkIns.createdAt));
+    
+    return results.map(r => ({ ...r.checkIn, guest: r.guest, room: r.room }));
   }
 
   async getActiveCheckIns(): Promise<(CheckIn & { guest: Guest; room: Room })[]> {
-    return await db
-      .select()
+    const results = await db
+      .select({
+        checkIn: checkIns,
+        guest: guests,
+        room: rooms
+      })
       .from(checkIns)
       .innerJoin(guests, eq(checkIns.guestId, guests.id))
       .innerJoin(rooms, eq(checkIns.roomId, rooms.id))
       .where(eq(checkIns.isActive, true))
       .orderBy(desc(checkIns.createdAt));
+    
+    return results.map(r => ({ ...r.checkIn, guest: r.guest, room: r.room }));
   }
 
   async createCheckIn(checkIn: InsertCheckIn): Promise<CheckIn> {
