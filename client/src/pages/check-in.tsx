@@ -62,13 +62,12 @@ export default function CheckIn() {
         guest: { ...guestData, signature },
         checkIn: {
           roomId,
-          checkInDate: checkInDateTime.toISOString(),
+          checkInDate: checkInDateTime,
           checkInTime,
         }
       };
 
-      const response = await apiRequest("POST", "/api/complete-checkin", payload);
-      return response.json();
+      return await apiRequest("/api/complete-checkin", "POST", payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/rooms"] });
@@ -85,9 +84,18 @@ export default function CheckIn() {
       setLocation("/dashboard");
     },
     onError: (error: any) => {
+      console.error("Check-in error:", error);
+      let errorMessage = "Failed to complete check-in";
+      
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (typeof error === "string") {
+        errorMessage = error;
+      }
+      
       toast({
         title: "Error",
-        description: error.message || "Failed to complete check-in",
+        description: errorMessage,
         variant: "destructive",
       });
     },

@@ -159,9 +159,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { guest: guestData, checkIn: checkInData } = req.body;
       
+      // Custom validation for check-in data that handles date conversion
+      const checkInValidationSchema = z.object({
+        roomId: z.string().min(1),
+        checkInDate: z.coerce.date(),
+        checkInTime: z.string()
+      });
+      
       // Validate data
       const validatedGuest = insertGuestSchema.parse(guestData);
-      const validatedCheckIn = insertCheckInSchema.omit({ guestId: true }).parse(checkInData);
+      const validatedCheckIn = checkInValidationSchema.parse(checkInData);
       
       // Create guest first
       const guest = await storage.createGuest(validatedGuest);

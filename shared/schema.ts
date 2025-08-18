@@ -86,6 +86,8 @@ export const insertCheckInSchema = createInsertSchema(checkIns).omit({
   id: true,
   createdAt: true,
   isActive: true,
+}).extend({
+  checkInDate: z.union([z.date(), z.string().transform((str) => new Date(str))]),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
