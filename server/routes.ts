@@ -1,10 +1,18 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import cookieParser from "cookie-parser";
 import { storage } from "./storage";
+import { setupAuthRoutes, authenticateToken, requireRole } from "./auth";
 import { insertGuestSchema, insertCheckInSchema, insertRoomSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Middleware
+  app.use(cookieParser());
+  
+  // Authentication routes
+  setupAuthRoutes(app);
+  
   // Room routes
   app.get("/api/rooms", async (req, res) => {
     try {
@@ -188,6 +196,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         res.status(500).json({ message: "Failed to complete check-in" });
       }
+    }
+  });
+
+  // Checkout and invoice generation
+  app.post("/api/checkout", async (req, res) => {
+    try {
+      const { checkInId, actualCheckOutDate, actualCheckOutTime, guestGstNumber, additionalCharges = 0, discount = 0 } = req.body;
+      
+      // Get check-in details with related data
+      const checkIn = await storage.getCheckInWithDetails(checkInId);
+      if (!checkIn) {
+        return res.status(404).json({ message: "Check-in not found" });
+      }
+      
+      // Calculate bill
+      const checkInDate = new Date(checkIn.checkInDate);
+      const checkOutDate = new Date(actualCheckOutDate);
+      const nights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)) || 1;
+      
+      const roomRate = parseFloat(checkIn.room.basePrice || "0");
+      const subtotal = (roomRate * nights) + additionalCharges - discount;
+      const gstRate = 0.18; // 18% GST
+      const totalTax = subtotal * gstRate;
+      const totalAmount = subtotal + totalTax;
+      
+      // Update check-in with checkout details
+      await storage.updateCheckOut(checkInId, {
+        actualCheckOutDate: new Date(actualCheckOutDate),
+        actualCheckOutTime,
+        totalAmount,
+        paymentStatus: "paid"
+      });
+      
+      // Generate invoice number (format: HOTEL-YYYYMMDD-NNNN)
+      const invoiceNumber = `${checkIn.room.hotel?.name?.substring(0, 3).toUpperCase() || "HTL"}-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(new Date().getDate()).padStart(2, '0')}-${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`;
+      
+      // Create invoice
+      const invoice = await storage.createInvoice({
+        checkInId,
+        hotelId: checkIn.room.hotelId,
+        invoiceNumber,
+        guestName: checkIn.guest.fullName,
+        guestAddress: checkIn.guest.address,
+        guestGstNumber: guestGstNumber || null,
+        subtotal: subtotal.toString(),
+        cgstRate: "9.00",
+        sgstRate: "9.00",
+        igstRate: "0.00",
+        cgstAmount: (totalTax / 2).toString(),
+        sgstAmount: (totalTax / 2).toString(),
+        igstAmount: "0.00",
+        totalTax: totalTax.toString(),
+        totalAmount: totalAmount.toString(),
+        paymentStatus: "paid"
+      });
+      
+      // Update room status to cleaning
+      await storage.updateRoomStatus(checkIn.roomId, "cleaning");
+      
+      res.json({
+        message: "Checkout completed successfully",
+        invoice,
+        totalAmount,
+        nights
+      });
+    } catch (error) {
+      console.error("Checkout error:", error);
+      res.status(500).json({ message: "Checkout failed" });
     }
   });
 

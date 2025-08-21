@@ -1,13 +1,16 @@
 # Overview
 
-This is a hotel check-in management system built as a full-stack web application. The system enables hotel staff to manage guest check-ins, track room availability in real-time, and maintain comprehensive guest records. It features a React frontend with a Node.js/Express backend, using PostgreSQL for data persistence and Drizzle ORM for database operations.
+This is a comprehensive B2B hotel management platform built as a full-stack web application. The system enables multi-property hotel operations with role-based access control, featuring a React frontend with Node.js/Express backend, PostgreSQL database, and Drizzle ORM for data operations.
 
-The application provides core hotel management functionality including:
-- Guest check-in forms with comprehensive data capture (personal details, signature, room assignment)
-- Real-time room inventory dashboard with visual status indicators
-- Guest management and search capabilities
-- Basic reporting functionality
-- Responsive design optimized for both desktop and tablet usage
+The platform provides enterprise-level hotel management functionality including:
+- Multi-tenancy support for hotel chains and independent properties
+- Role-based authentication (Admin and Hotelier access levels)
+- Complete guest lifecycle management (check-in, stay tracking, checkout)
+- GST-compliant invoice generation with Indian tax law compliance
+- Real-time room inventory and calendar management
+- Comprehensive reporting and analytics dashboard
+- Landing page with B2B pricing and registration flow
+- Responsive design optimized for desktop and tablet usage
 
 # User Preferences
 

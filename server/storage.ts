@@ -1,9 +1,11 @@
 import { 
-  users, rooms, guests, checkIns,
+  users, rooms, guests, checkIns, hotels, invoices,
   type User, type InsertUser,
   type Room, type InsertRoom,
   type Guest, type InsertGuest,
-  type CheckIn, type InsertCheckIn
+  type CheckIn, type InsertCheckIn,
+  type Hotel, type InsertHotel,
+  type Invoice, type InsertInvoice
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, ilike, or } from "drizzle-orm";
@@ -11,16 +13,21 @@ import { eq, desc, and, ilike, or } from "drizzle-orm";
 export interface IStorage {
   // User methods
   getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   
+  // Hotel methods
+  getHotel(id: string): Promise<Hotel | undefined>;
+  getHotelsByOwnerId(ownerId: string): Promise<Hotel[]>;
+  createHotel(hotel: InsertHotel): Promise<Hotel>;
+  
   // Room methods
-  getRooms(): Promise<Room[]>;
+  getRooms(hotelId?: string): Promise<Room[]>;
   getRoom(id: string): Promise<Room | undefined>;
-  getRoomByNumber(number: string): Promise<Room | undefined>;
+  getRoomByNumber(number: string, hotelId?: string): Promise<Room | undefined>;
   createRoom(room: InsertRoom): Promise<Room>;
   updateRoomStatus(id: string, status: "available" | "occupied" | "cleaning" | "maintenance"): Promise<Room | undefined>;
-  getAvailableRooms(): Promise<Room[]>;
+  getAvailableRooms(hotelId?: string): Promise<Room[]>;
   
   // Guest methods
   getGuests(search?: string, limit?: number, offset?: number): Promise<{ guests: (Guest & { room?: Room; checkInDate?: Date })[], total: number }>;
@@ -30,8 +37,15 @@ export interface IStorage {
   // Check-in methods
   getCheckIns(): Promise<(CheckIn & { guest: Guest; room: Room })[]>;
   getActiveCheckIns(): Promise<(CheckIn & { guest: Guest; room: Room })[]>;
+  getCheckInWithDetails(checkInId: string): Promise<(CheckIn & { guest: Guest; room: Room & { hotel?: Hotel } }) | undefined>;
   createCheckIn(checkIn: InsertCheckIn): Promise<CheckIn>;
+  updateCheckOut(checkInId: string, checkOutData: { actualCheckOutDate: Date; actualCheckOutTime: string; totalAmount: number; paymentStatus: string }): Promise<void>;
   checkOutGuest(guestId: string): Promise<void>;
+  
+  // Invoice methods
+  createInvoice(invoice: InsertInvoice): Promise<Invoice>;
+  getInvoice(id: string): Promise<Invoice | undefined>;
+  getInvoicesByHotel(hotelId: string): Promise<Invoice[]>;
   
   // Statistics
   getRoomStatistics(): Promise<{
@@ -48,8 +62,8 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
     return user || undefined;
   }
 
@@ -59,6 +73,24 @@ export class DatabaseStorage implements IStorage {
       .values(insertUser)
       .returning();
     return user;
+  }
+
+  // Hotel methods
+  async getHotel(id: string): Promise<Hotel | undefined> {
+    const [hotel] = await db.select().from(hotels).where(eq(hotels.id, id));
+    return hotel || undefined;
+  }
+
+  async getHotelsByOwnerId(ownerId: string): Promise<Hotel[]> {
+    return await db.select().from(hotels).where(eq(hotels.ownerId, ownerId));
+  }
+
+  async createHotel(hotel: InsertHotel): Promise<Hotel> {
+    const [newHotel] = await db
+      .insert(hotels)
+      .values(hotel)
+      .returning();
+    return newHotel;
   }
 
   async getRooms(): Promise<Room[]> {
@@ -248,6 +280,78 @@ export class DatabaseStorage implements IStorage {
     });
     
     return result;
+  }
+
+  async getCheckInWithDetails(checkInId: string): Promise<(CheckIn & { guest: Guest; room: Room & { hotel?: Hotel } }) | undefined> {
+    const [result] = await db
+      .select({
+        id: checkIns.id,
+        guestId: checkIns.guestId,
+        roomId: checkIns.roomId,
+        checkInDate: checkIns.checkInDate,
+        checkInTime: checkIns.checkInTime,
+        checkOutDate: checkIns.checkOutDate,
+        checkOutTime: checkIns.checkOutTime,
+        actualCheckOutDate: checkIns.actualCheckOutDate,
+        actualCheckOutTime: checkIns.actualCheckOutTime,
+        totalAmount: checkIns.totalAmount,
+        paymentStatus: checkIns.paymentStatus,
+        isActive: checkIns.isActive,
+        createdAt: checkIns.createdAt,
+        guest: guests,
+        room: rooms,
+        hotel: hotels
+      })
+      .from(checkIns)
+      .leftJoin(guests, eq(checkIns.guestId, guests.id))
+      .leftJoin(rooms, eq(checkIns.roomId, rooms.id))
+      .leftJoin(hotels, eq(rooms.hotelId, hotels.id))
+      .where(eq(checkIns.id, checkInId));
+
+    if (!result || !result.guest || !result.room) return undefined;
+
+    return {
+      id: result.id,
+      guestId: result.guestId,
+      roomId: result.roomId,
+      checkInDate: result.checkInDate,
+      checkInTime: result.checkInTime,
+      checkOutDate: result.checkOutDate,
+      checkOutTime: result.checkOutTime,
+      actualCheckOutDate: result.actualCheckOutDate,
+      actualCheckOutTime: result.actualCheckOutTime,
+      totalAmount: result.totalAmount,
+      paymentStatus: result.paymentStatus,
+      isActive: result.isActive,
+      createdAt: result.createdAt,
+      guest: result.guest,
+      room: { ...result.room, hotel: result.hotel }
+    };
+  }
+
+  async updateCheckOut(checkInId: string, checkOutData: { actualCheckOutDate: Date; actualCheckOutTime: string; totalAmount: number; paymentStatus: string }): Promise<void> {
+    await db
+      .update(checkIns)
+      .set({ ...checkOutData, isActive: false })
+      .where(eq(checkIns.id, checkInId));
+  }
+
+  // Invoice methods
+  async createInvoice(invoice: InsertInvoice): Promise<Invoice> {
+    const [newInvoice] = await db
+      .insert(invoices)
+      .values(invoice)
+      .returning();
+    return newInvoice;
+  }
+
+  async getInvoice(id: string): Promise<Invoice | undefined> {
+    const [invoice] = await db.select().from(invoices).where(eq(invoices.id, id));
+    return invoice || undefined;
+  }
+
+  async getInvoicesByHotel(hotelId: string): Promise<Invoice[]> {
+    return await db.select().from(invoices).where(eq(invoices.hotelId, hotelId));
   }
 }
 

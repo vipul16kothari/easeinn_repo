@@ -4,8 +4,12 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "./pages/not-found";
+import Landing from "./pages/landing";
+import Login from "./pages/login";
+import Register from "./pages/register";
 import Dashboard from "./pages/dashboard";
 import CheckIn from "./pages/check-in";
+import Checkout from "./pages/checkout";
 import Guests from "./pages/guests";
 import Reports from "./pages/reports";
 import Rooms from "./pages/rooms";
@@ -14,19 +18,58 @@ import Header from "./components/header";
 
 function Router() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-      <Switch>
-        <Route path="/" component={Dashboard} />
-        <Route path="/dashboard" component={Dashboard} />
-        <Route path="/check-in" component={CheckIn} />
-        <Route path="/guests" component={Guests} />
-        <Route path="/rooms" component={Rooms} />
-        <Route path="/calendar" component={Calendar} />
-        <Route path="/reports" component={Reports} />
-        <Route component={NotFound} />
-      </Switch>
-    </div>
+    <Switch>
+      {/* Public routes */}
+      <Route path="/" component={Landing} />
+      <Route path="/login" component={Login} />
+      <Route path="/register" component={Register} />
+      
+      {/* Authenticated routes with header */}
+      <Route path="/dashboard">
+        <div className="min-h-screen bg-gray-50">
+          <Header />
+          <Dashboard />
+        </div>
+      </Route>
+      <Route path="/check-in">
+        <div className="min-h-screen bg-gray-50">
+          <Header />
+          <CheckIn />
+        </div>
+      </Route>
+      <Route path="/checkout">
+        <div className="min-h-screen bg-gray-50">
+          <Header />
+          <Checkout />
+        </div>
+      </Route>
+      <Route path="/guests">
+        <div className="min-h-screen bg-gray-50">
+          <Header />
+          <Guests />
+        </div>
+      </Route>
+      <Route path="/rooms">
+        <div className="min-h-screen bg-gray-50">
+          <Header />
+          <Rooms />
+        </div>
+      </Route>
+      <Route path="/calendar">
+        <div className="min-h-screen bg-gray-50">
+          <Header />
+          <Calendar />
+        </div>
+      </Route>
+      <Route path="/reports">
+        <div className="min-h-screen bg-gray-50">
+          <Header />
+          <Reports />
+        </div>
+      </Route>
+      
+      <Route component={NotFound} />
+    </Switch>
   );
 }
 

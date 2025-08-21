@@ -6,6 +6,7 @@ export default function Header() {
   const navItems = [
     { href: "/dashboard", label: "Dashboard", id: "dashboard" },
     { href: "/check-in", label: "Check-in", id: "checkin" },
+    { href: "/checkout", label: "Checkout", id: "checkout" },
     { href: "/guests", label: "Guests", id: "guests" },
     { href: "/rooms", label: "Rooms", id: "rooms" },
     { href: "/calendar", label: "Calendar", id: "calendar" },
