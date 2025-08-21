@@ -15,6 +15,7 @@ import Reports from "./pages/reports";
 import Rooms from "./pages/rooms";
 import Bookings from "./pages/bookings";
 import Calendar from "./pages/calendar";
+import MultiRoomBooking from "./pages/multi-room-booking";
 import Header from "./components/header";
 
 function Router() {
@@ -65,7 +66,7 @@ function Router() {
       <Route path="/multi-room-booking">
         <div className="min-h-screen bg-gray-50">
           <Header />
-          <div>Multi-Room Booking - Coming Soon</div>
+          <MultiRoomBooking />
         </div>
       </Route>
       <Route path="/calendar">

@@ -252,6 +252,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Multi-room booking endpoint
+  app.post("/api/bookings/multi-room", async (req, res) => {
+    try {
+      const { guestName, guestPhone, guestEmail, checkInDate, checkOutDate, advanceAmount, totalAmount, specialRequests, rooms } = req.body;
+
+      // Add hotelId from first available hotel if missing (single-property setup)
+      const hotels = await storage.getHotels();
+      if (hotels.length === 0) {
+        return res.status(400).json({ message: "No hotels found. Please create a hotel first." });
+      }
+
+      const bookingData = {
+        hotelId: hotels[0].id,
+        guestName,
+        guestPhone,
+        guestEmail: guestEmail || null,
+        checkInDate: new Date(checkInDate),
+        checkOutDate: new Date(checkOutDate),
+        advanceAmount: advanceAmount?.toString() || "0.00",
+        totalAmount: totalAmount?.toString() || "0.00",
+        specialRequests: specialRequests || null,
+      };
+
+      const roomsData = rooms.map((room: any) => ({
+        roomType: room.roomType,
+        roomNumber: room.roomNumber || null,
+        roomRate: room.roomRate?.toString() || "0.00",
+      }));
+
+      const booking = await storage.createBookingWithRooms(bookingData, roomsData);
+
+      res.status(201).json(booking);
+    } catch (error) {
+      console.error("Error creating multi-room booking:", error);
+      res.status(500).json({ message: "Failed to create multi-room booking" });
+    }
+  });
+
   app.patch("/api/bookings/:id/status", async (req, res) => {
     try {
       const { id } = req.params;

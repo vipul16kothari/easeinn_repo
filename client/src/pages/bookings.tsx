@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,7 @@ type BookingFormData = z.infer<typeof bookingSchema>;
 
 export default function BookingsPage() {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
   const { data: bookings = [], isLoading } = useQuery<Booking[]>({
@@ -172,13 +174,14 @@ export default function BookingsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Advance Bookings</h1>
           <p className="text-gray-600 mt-1">Manage future reservations and advance bookings</p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-add-booking">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Advance Booking
-            </Button>
-          </DialogTrigger>
+        <div className="flex space-x-2">
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" data-testid="button-add-booking">
+                <Plus className="h-4 w-4 mr-2" />
+                Single Room
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create Advance Booking</DialogTitle>
@@ -428,6 +431,15 @@ export default function BookingsPage() {
             </Form>
           </DialogContent>
         </Dialog>
+        
+        <Button 
+          onClick={() => setLocation("/multi-room-booking")} 
+          data-testid="button-multi-room-booking"
+        >
+          <Users className="h-4 w-4 mr-2" />
+          Multi-Room Booking
+        </Button>
+        </div>
       </div>
 
       {bookings.length === 0 ? (
