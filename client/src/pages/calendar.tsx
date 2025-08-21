@@ -68,38 +68,83 @@ export default function CalendarPage() {
       });
     });
 
-    // Add advance bookings (blue)
-    bookings.forEach((booking: Booking) => {
+    // Add advance bookings (blue) - only show exact number of rooms booked
+    bookings.forEach((booking: any) => {
       if (booking.bookingStatus !== 'confirmed') return;
       
       const checkInDate = new Date(booking.checkInDate);
       const checkOutDate = new Date(booking.checkOutDate);
       
-      // For advance bookings, we need to find matching room type
-      const matchingRooms = rooms.filter(room => room.type === booking.roomType);
-      
-      matchingRooms.forEach(room => {
-        if (!roomBookings[room.id]) {
-          roomBookings[room.id] = {};
-        }
-        
-        dateRange.forEach(date => {
-          const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-          const checkInOnly = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
-          const checkOutOnly = new Date(checkOutDate.getFullYear(), checkOutDate.getMonth(), checkOutDate.getDate());
+      // Handle both old format (single room type) and new format (multiple rooms)
+      if (booking.rooms && booking.rooms.length > 0) {
+        // New multi-room format
+        booking.rooms.forEach((bookingRoom: any) => {
+          const matchingRooms = rooms.filter(room => room.type === bookingRoom.roomType);
           
-          if (dateOnly >= checkInOnly && dateOnly < checkOutOnly) {
-            const dateKey = format(date, 'yyyy-MM-dd');
-            // Only add if slot is not already occupied by a check-in
-            if (!roomBookings[room.id][dateKey]) {
-              roomBookings[room.id][dateKey] = {
-                booking,
-                type: 'booking'
-              };
-            }
+          // Only assign to one room of the matching type if no specific room number
+          let roomsToAssign = matchingRooms;
+          if (bookingRoom.roomNumber) {
+            roomsToAssign = matchingRooms.filter(room => room.number === bookingRoom.roomNumber);
+          } else {
+            // For non-specific bookings, only take the first available room to avoid duplication
+            roomsToAssign = matchingRooms.slice(0, 1);
           }
+          
+          roomsToAssign.forEach(room => {
+            if (!roomBookings[room.id]) {
+              roomBookings[room.id] = {};
+            }
+            
+            dateRange.forEach(date => {
+              const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+              const checkInOnly = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
+              const checkOutOnly = new Date(checkOutDate.getFullYear(), checkOutDate.getMonth(), checkOutDate.getDate());
+              
+              if (dateOnly >= checkInOnly && dateOnly < checkOutOnly) {
+                const dateKey = format(date, 'yyyy-MM-dd');
+                // Only add if slot is not already occupied by a check-in
+                if (!roomBookings[room.id][dateKey]) {
+                  roomBookings[room.id][dateKey] = {
+                    booking,
+                    bookingRoom,
+                    type: 'booking'
+                  };
+                }
+              }
+            });
+          });
         });
-      });
+      } else {
+        // Old single room type format - show only the exact number of rooms
+        const matchingRooms = rooms.filter(room => room.type === booking.roomType);
+        const numberOfRooms = booking.numberOfRooms || 1;
+        
+        // Only assign to the exact number of rooms booked
+        const roomsToAssign = matchingRooms.slice(0, numberOfRooms);
+        
+        roomsToAssign.forEach(room => {
+          if (!roomBookings[room.id]) {
+            roomBookings[room.id] = {};
+          }
+          
+          dateRange.forEach(date => {
+            const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+            const checkInOnly = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
+            const checkOutOnly = new Date(checkOutDate.getFullYear(), checkOutDate.getMonth(), checkOutDate.getDate());
+            
+            if (dateOnly >= checkInOnly && dateOnly < checkOutOnly) {
+              const dateKey = format(date, 'yyyy-MM-dd');
+              // Only add if slot is not already occupied by a check-in
+              if (!roomBookings[room.id][dateKey]) {
+                roomBookings[room.id][dateKey] = {
+                  booking,
+                  type: 'booking'
+                };
+              }
+            }
+          });
+        });
+      }
     });
     
     return roomBookings;

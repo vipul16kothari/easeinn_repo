@@ -1,12 +1,14 @@
 import { 
-  users, rooms, guests, checkIns, hotels, invoices, bookings,
+  users, rooms, guests, checkIns, hotels, invoices, bookings, bookingRooms,
   type User, type InsertUser,
   type Room, type InsertRoom,
   type Guest, type InsertGuest,
   type CheckIn, type InsertCheckIn,
   type Hotel, type InsertHotel,
   type Invoice, type InsertInvoice,
-  type Booking, type InsertBooking
+  type Booking, type InsertBooking,
+  type BookingRoom, type InsertBookingRoom,
+  type BookingWithRooms
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, ilike, or } from "drizzle-orm";
@@ -45,11 +47,12 @@ export interface IStorage {
   checkOutGuest(guestId: string): Promise<void>;
   
   // Booking methods
-  getBookings(hotelId?: string): Promise<Booking[]>;
-  getBooking(id: string): Promise<Booking | undefined>;
+  getBookings(hotelId?: string): Promise<BookingWithRooms[]>;
+  getBooking(id: string): Promise<BookingWithRooms | undefined>;
   createBooking(booking: InsertBooking): Promise<Booking>;
+  createBookingWithRooms(booking: InsertBooking, rooms: InsertBookingRoom[]): Promise<BookingWithRooms>;
   updateBookingStatus(id: string, status: string): Promise<Booking | undefined>;
-  getBookingsByDateRange(startDate: Date, endDate: Date, hotelId?: string): Promise<Booking[]>;
+  getBookingsByDateRange(startDate: Date, endDate: Date, hotelId?: string): Promise<BookingWithRooms[]>;
   
   // Invoice methods
   createInvoice(invoice: InsertInvoice): Promise<Invoice>;
@@ -358,16 +361,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Booking methods
-  async getBookings(hotelId?: string): Promise<Booking[]> {
-    if (hotelId) {
-      return await db.select().from(bookings).where(eq(bookings.hotelId, hotelId)).orderBy(bookings.checkInDate);
-    }
-    return await db.select().from(bookings).orderBy(bookings.checkInDate);
+  async getBookings(hotelId?: string): Promise<BookingWithRooms[]> {
+    const bookingsData = await db.query.bookings.findMany({
+      with: {
+        rooms: true,
+      },
+      where: hotelId ? eq(bookings.hotelId, hotelId) : undefined,
+      orderBy: [bookings.checkInDate],
+    });
+    return bookingsData;
   }
 
-  async getBooking(id: string): Promise<Booking | undefined> {
-    const [booking] = await db.select().from(bookings).where(eq(bookings.id, id));
-    return booking || undefined;
+  async getBooking(id: string): Promise<BookingWithRooms | undefined> {
+    const booking = await db.query.bookings.findFirst({
+      with: {
+        rooms: true,
+      },
+      where: eq(bookings.id, id),
+    });
+    return booking;
   }
 
   async createBooking(booking: InsertBooking): Promise<Booking> {
@@ -376,6 +388,25 @@ export class DatabaseStorage implements IStorage {
       .values(booking)
       .returning();
     return newBooking;
+  }
+
+  async createBookingWithRooms(
+    booking: InsertBooking,
+    rooms: InsertBookingRoom[]
+  ): Promise<BookingWithRooms> {
+    const [newBooking] = await db.insert(bookings).values(booking).returning();
+    
+    const roomsWithBookingId = rooms.map(room => ({
+      ...room,
+      bookingId: newBooking.id,
+    }));
+    
+    const newRooms = await db.insert(bookingRooms).values(roomsWithBookingId).returning();
+    
+    return {
+      ...newBooking,
+      rooms: newRooms,
+    };
   }
 
   async updateBookingStatus(id: string, status: string): Promise<Booking | undefined> {

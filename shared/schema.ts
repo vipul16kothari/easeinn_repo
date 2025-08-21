@@ -92,12 +92,8 @@ export const bookings = pgTable("bookings", {
   guestName: text("guest_name").notNull(),
   guestPhone: varchar("guest_phone", { length: 20 }).notNull(),
   guestEmail: varchar("guest_email", { length: 255 }),
-  roomType: roomTypeEnum("room_type").notNull(),
-  roomNumber: varchar("room_number", { length: 10 }), // Optional specific room number
-  numberOfRooms: integer("number_of_rooms").notNull().default(1),
   checkInDate: timestamp("check_in_date").notNull(),
   checkOutDate: timestamp("check_out_date").notNull(),
-  roomRate: decimal("room_rate", { precision: 10, scale: 2 }).notNull(),
   advanceAmount: decimal("advance_amount", { precision: 10, scale: 2 }).default("0.00"),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }),
   specialRequests: text("special_requests"),
@@ -106,6 +102,28 @@ export const bookings = pgTable("bookings", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// Individual room bookings - each booking can have multiple rooms with different types and rates
+export const bookingRooms = pgTable("booking_rooms", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bookingId: varchar("booking_id").notNull().references(() => bookings.id, { onDelete: "cascade" }),
+  roomType: roomTypeEnum("room_type").notNull(),
+  roomNumber: varchar("room_number", { length: 10 }), // Optional specific room number
+  roomRate: decimal("room_rate", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Relations for bookings
+export const bookingsRelations = relations(bookings, ({ many }) => ({
+  rooms: many(bookingRooms),
+}));
+
+export const bookingRoomsRelations = relations(bookingRooms, ({ one }) => ({
+  booking: one(bookings, {
+    fields: [bookingRooms.bookingId],
+    references: [bookings.id],
+  }),
+}));
 
 // Invoices table for GST compliant billing
 export const invoices = pgTable("invoices", {
@@ -219,6 +237,7 @@ export const insertInvoiceSchema = createInsertSchema(invoices).omit({
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+export type UpsertUser = typeof users.$inferInsert;
 export type InsertHotel = z.infer<typeof insertHotelSchema>;
 export type Hotel = typeof hotels.$inferSelect;
 export type InsertRoom = z.infer<typeof insertRoomSchema>;
@@ -239,7 +258,15 @@ export const insertBookingSchema = createInsertSchema(bookings).omit({
   totalAmount: z.union([z.string(), z.number().transform((num) => num.toString())]).optional(),
 });
 
-export type InsertBooking = z.infer<typeof insertBookingSchema>;
-export type Booking = typeof bookings.$inferSelect;
 export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
 export type Invoice = typeof invoices.$inferSelect;
+
+export type InsertBooking = typeof bookings.$inferInsert;
+export type Booking = typeof bookings.$inferSelect;
+export type InsertBookingRoom = typeof bookingRooms.$inferInsert;
+export type BookingRoom = typeof bookingRooms.$inferSelect;
+
+// Extended types for API responses
+export type BookingWithRooms = Booking & {
+  rooms: BookingRoom[];
+};

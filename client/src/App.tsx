@@ -62,6 +62,12 @@ function Router() {
           <Bookings />
         </div>
       </Route>
+      <Route path="/multi-room-booking">
+        <div className="min-h-screen bg-gray-50">
+          <Header />
+          <div>Multi-Room Booking - Coming Soon</div>
+        </div>
+      </Route>
       <Route path="/calendar">
         <div className="min-h-screen bg-gray-50">
           <Header />
