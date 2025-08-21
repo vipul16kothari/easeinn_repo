@@ -23,7 +23,7 @@ export default function Header() {
   return (
     <header className="bg-white shadow-sm border-b border-gray-200" data-testid="header">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center h-16 gap-4">
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <Link href="/" data-testid="logo-link">
@@ -50,15 +50,17 @@ export default function Header() {
               ))}
             </nav>
           </div>
-          <div className="flex items-center space-x-4">
-            <div className="text-right">
-              <div className="text-sm font-medium text-gray-900" data-testid="user-name">
+          <div className="flex items-center space-x-4 relative z-50">
+            <div className="text-right max-w-[200px]">
+              <div className="text-sm font-medium text-gray-900 truncate" data-testid="user-name">
                 {user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.email || 'User'}
               </div>
               <div className="text-xs text-gray-500" data-testid="user-role">
-                {user?.role === 'hotelier' ? 'Hotel Manager' : 'Front Desk Staff'}
+                <div className="truncate">
+                  {user?.role === 'hotelier' ? 'Hotel Manager' : 'Front Desk Staff'}
+                </div>
                 {hotel?.name && user?.role === 'hotelier' && (
-                  <span className="block">{hotel.name}</span>
+                  <div className="truncate text-xs">{hotel.name}</div>
                 )}
               </div>
             </div>
