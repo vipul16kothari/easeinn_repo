@@ -33,7 +33,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/rooms", async (req, res) => {
+  app.post("/api/rooms", authenticateToken, async (req: any, res) => {
     try {
       // Add hotelId from first available hotel if missing (single-property setup)
       let roomData = { ...req.body };
@@ -43,6 +43,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "No hotels found. Please create a hotel first." });
         }
         roomData.hotelId = hotels[0].id;
+      }
+
+      // Check hotel room capacity limits
+      const hotel = await storage.getHotel(roomData.hotelId);
+      if (!hotel) {
+        return res.status(400).json({ message: "Hotel not found" });
+      }
+
+      // Get current room count for this hotel
+      const currentRooms = await storage.getRooms(roomData.hotelId);
+      const currentRoomCount = currentRooms.length;
+
+      // Check against hotel's enabled room limit
+      const enabledRoomsLimit = hotel.enabledRooms || hotel.maxRooms || 50;
+      if (currentRoomCount >= enabledRoomsLimit) {
+        return res.status(400).json({ 
+          message: `Cannot create room. Hotel has reached its room limit of ${enabledRoomsLimit} rooms. Please contact admin to increase capacity.` 
+        });
       }
       
       const validatedData = insertRoomSchema.parse(roomData);

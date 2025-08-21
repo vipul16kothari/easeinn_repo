@@ -119,7 +119,10 @@ export class DatabaseStorage implements IStorage {
     return updatedHotel;
   }
 
-  async getRooms(): Promise<Room[]> {
+  async getRooms(hotelId?: string): Promise<Room[]> {
+    if (hotelId) {
+      return await db.select().from(rooms).where(eq(rooms.hotelId, hotelId)).orderBy(rooms.number);
+    }
     return await db.select().from(rooms).orderBy(rooms.number);
   }
 
@@ -150,7 +153,10 @@ export class DatabaseStorage implements IStorage {
     return room || undefined;
   }
 
-  async getAvailableRooms(): Promise<Room[]> {
+  async getAvailableRooms(hotelId?: string): Promise<Room[]> {
+    if (hotelId) {
+      return await db.select().from(rooms).where(and(eq(rooms.status, "available"), eq(rooms.hotelId, hotelId))).orderBy(rooms.number);
+    }
     return await db.select().from(rooms).where(eq(rooms.status, "available")).orderBy(rooms.number);
   }
 

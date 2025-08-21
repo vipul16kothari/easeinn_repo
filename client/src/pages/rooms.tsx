@@ -8,11 +8,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Plus, Edit, Bed } from "lucide-react";
+import { Plus, Edit, Bed, AlertTriangle } from "lucide-react";
+import { useHotelConfig } from "@/hooks/useHotelConfig";
 import type { Room, InsertRoom } from "@shared/schema";
 
 export default function RoomsPage() {
   const { toast } = useToast();
+  const { hotel, config } = useHotelConfig();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [newRoom, setNewRoom] = useState<InsertRoom>({
@@ -26,6 +28,11 @@ export default function RoomsPage() {
   const { data: rooms = [], isLoading } = useQuery<Room[]>({
     queryKey: ["/api/rooms"],
   });
+
+  // Check if hotel has reached room capacity
+  const currentRoomCount = rooms.length;
+  const enabledRoomsLimit = config.enabledRooms;
+  const isAtCapacity = currentRoomCount >= enabledRoomsLimit;
 
   const createRoomMutation = useMutation({
     mutationFn: async (roomData: InsertRoom) => {
@@ -41,10 +48,10 @@ export default function RoomsPage() {
         description: "Room has been added successfully.",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
       toast({
         title: "Error",
-        description: "Failed to create room. Please try again.",
+        description: error.message || "Failed to create room. Please try again.",
         variant: "destructive",
       });
     },
