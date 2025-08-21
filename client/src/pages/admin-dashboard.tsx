@@ -125,6 +125,29 @@ export default function AdminDashboard() {
 
   const addHotelMutation = useMutation({
     mutationFn: async (formData: HotelFormData) => {
+      // Validate required fields
+      const errors = [];
+      if (!formData.name?.trim()) errors.push("Hotel name is required");
+      if (!formData.address?.trim()) errors.push("Hotel address is required");
+      if (!formData.phone?.trim()) errors.push("Hotel phone is required");
+      if (!formData.ownerFirstName?.trim()) errors.push("Owner first name is required");
+      if (!formData.ownerLastName?.trim()) errors.push("Owner last name is required");
+      if (!formData.ownerEmail?.trim()) errors.push("Owner email is required");
+      if (!formData.ownerPassword?.trim()) errors.push("Owner password is required");
+      if (!formData.subscriptionPlan?.trim()) errors.push("Subscription plan is required");
+      if (!formData.monthlyRate?.trim()) errors.push("Monthly rate is required");
+      if (!formData.subscriptionStartDate?.trim()) errors.push("Subscription start date is required");
+      if (!formData.subscriptionEndDate?.trim()) errors.push("Subscription end date is required");
+      
+      // Email validation
+      if (formData.ownerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.ownerEmail)) {
+        errors.push("Valid email address is required");
+      }
+      
+      if (errors.length > 0) {
+        throw new Error(errors.join(". "));
+      }
+
       return await apiRequest("POST", "/api/admin/hotels", formData);
     },
     onSuccess: () => {
@@ -351,7 +374,11 @@ export default function AdminDashboard() {
                     value={hotelFormData.ownerEmail}
                     onChange={(e) => setHotelFormData({...hotelFormData, ownerEmail: e.target.value})}
                     placeholder="john.doe@grandpalace.com"
+                    required
                   />
+                  {!hotelFormData.ownerEmail && (
+                    <p className="text-xs text-red-500">Email is required for hotel owner login</p>
+                  )}
                 </div>
                 
                 <div className="space-y-2">

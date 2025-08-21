@@ -435,14 +435,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const hotelData = req.body;
       
+      // Validate required fields
+      if (!hotelData.ownerEmail || !hotelData.ownerEmail.trim()) {
+        return res.status(400).json({ message: "Owner email is required" });
+      }
+      
+      if (!hotelData.ownerPassword || !hotelData.ownerPassword.trim()) {
+        return res.status(400).json({ message: "Owner password is required" });
+      }
+      
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(hotelData.ownerEmail.trim());
+      if (existingUser) {
+        return res.status(400).json({ message: "A user with this email already exists" });
+      }
+      
       // Create owner user first
       const hashedPassword = await bcrypt.hash(hotelData.ownerPassword, 12);
       const ownerUser = await storage.createUser({
-        email: hotelData.ownerEmail,
+        email: hotelData.ownerEmail.trim(),
         password: hashedPassword,
         role: "hotelier",
-        firstName: hotelData.ownerFirstName,
-        lastName: hotelData.ownerLastName,
+        firstName: hotelData.ownerFirstName || "",
+        lastName: hotelData.ownerLastName || "",
       });
 
       // Create hotel with subscription details
