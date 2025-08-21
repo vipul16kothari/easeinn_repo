@@ -232,7 +232,7 @@ export default function AdminDashboard() {
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <Building2 className="h-8 w-8 text-blue-600" />
-                <h1 className="text-2xl font-bold text-gray-900">HotelFlow Admin</h1>
+                <h1 className="text-2xl font-bold text-gray-900">EaseInn Admin</h1>
               </div>
               <Badge variant="outline" className="bg-blue-50 text-blue-700">
                 Super Admin Console

@@ -29,7 +29,7 @@ export default function Header() {
               <Link href="/" data-testid="logo-link">
                 <h1 className="text-xl font-bold text-primary-700">
                   <i className="fas fa-hotel mr-2"></i>
-                  {hotel?.name || 'HotelFlow'}
+                  {hotel?.name || 'EaseInn'}
                 </h1>
               </Link>
             </div>
