@@ -394,7 +394,12 @@ export class DatabaseStorage implements IStorage {
     booking: InsertBooking,
     rooms: InsertBookingRoom[]
   ): Promise<BookingWithRooms> {
-    const [newBooking] = await db.insert(bookings).values(booking).returning();
+    const bookingData = {
+      ...booking,
+      roomType: booking.roomType || "deluxe", // Ensure roomType is never null
+      roomRate: booking.roomRate || "0.00", // Ensure roomRate is never null
+    };
+    const [newBooking] = await db.insert(bookings).values(bookingData).returning();
     
     const roomsWithBookingId = rooms.map(room => ({
       ...room,

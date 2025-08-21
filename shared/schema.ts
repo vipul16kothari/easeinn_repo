@@ -92,11 +92,15 @@ export const bookings = pgTable("bookings", {
   guestName: text("guest_name").notNull(),
   guestPhone: varchar("guest_phone", { length: 20 }).notNull(),
   guestEmail: varchar("guest_email", { length: 255 }),
+  roomType: roomTypeEnum("room_type"), // Optional for multi-room bookings
+  numberOfRooms: integer("number_of_rooms").default(1),
   checkInDate: timestamp("check_in_date").notNull(),
   checkOutDate: timestamp("check_out_date").notNull(),
+  roomRate: decimal("room_rate", { precision: 10, scale: 2 }),
   advanceAmount: decimal("advance_amount", { precision: 10, scale: 2 }).default("0.00"),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }),
   specialRequests: text("special_requests"),
+  roomNumber: varchar("room_number", { length: 10 }),
   bookingStatus: varchar("booking_status", { length: 20 }).notNull().default("confirmed"), // confirmed, cancelled, checked_in
   paymentStatus: paymentStatusEnum("payment_status").default("pending"),
   createdAt: timestamp("created_at").defaultNow(),

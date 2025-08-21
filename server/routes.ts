@@ -268,8 +268,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         guestName,
         guestPhone,
         guestEmail: guestEmail || null,
+        roomType: "deluxe", // Default value to satisfy NOT NULL constraint, actual room types in booking_rooms table
+        numberOfRooms: rooms.length,
         checkInDate: new Date(checkInDate),
         checkOutDate: new Date(checkOutDate),
+        roomRate: "0.00", // Default value, actual room rates in booking_rooms table
         advanceAmount: advanceAmount?.toString() || "0.00",
         totalAmount: totalAmount?.toString() || "0.00",
         specialRequests: specialRequests || null,

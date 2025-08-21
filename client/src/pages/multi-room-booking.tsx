@@ -66,10 +66,23 @@ export default function MultiRoomBooking() {
       
       const totalAmount = data.rooms.reduce((sum, room) => sum + (room.roomRate * nights), 0);
 
-      return apiRequest("/api/bookings/multi-room", "POST", {
-        ...data,
-        totalAmount,
+      const response = await fetch("/api/bookings/multi-room", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...data,
+          totalAmount,
+        }),
       });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to create multi-room booking");
+      }
+
+      return response.json();
     },
     onSuccess: () => {
       toast({
