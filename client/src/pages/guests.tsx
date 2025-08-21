@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Guest, Room } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -18,6 +19,8 @@ export default function Guests() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [selectedDate, setSelectedDate] = useState("");
+  const [viewingGuest, setViewingGuest] = useState<GuestWithRoom | null>(null);
+  const [editingGuest, setEditingGuest] = useState<GuestWithRoom | null>(null);
   const { toast } = useToast();
 
   const { data: guestsData, isLoading } = useQuery<{ guests: GuestWithRoom[]; total: number }>({
@@ -239,12 +242,16 @@ export default function Guests() {
                       <button
                         className="text-primary-600 hover:text-primary-900"
                         data-testid={`button-view-guest-${guest.id}`}
+                        onClick={() => setViewingGuest(guest)}
+                        title="View Guest Details"
                       >
                         <i className="fas fa-eye"></i>
                       </button>
                       <button
                         className="text-gray-400 hover:text-gray-600"
                         data-testid={`button-edit-guest-${guest.id}`}
+                        onClick={() => setEditingGuest(guest)}
+                        title="Edit Guest"
                       >
                         <i className="fas fa-edit"></i>
                       </button>
@@ -303,6 +310,79 @@ export default function Guests() {
           </div>
         </div>
       </div>
+
+      {/* View Guest Dialog */}
+      <Dialog open={!!viewingGuest} onOpenChange={(open) => !open && setViewingGuest(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Guest Details</DialogTitle>
+          </DialogHeader>
+          {viewingGuest && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-semibold text-gray-900">Personal Information</h4>
+                  <div className="mt-2 space-y-2">
+                    <p><span className="font-medium">Name:</span> {viewingGuest.name}</p>
+                    <p><span className="font-medium">Phone:</span> {viewingGuest.phone}</p>
+                    <p><span className="font-medium">Email:</span> {viewingGuest.email || 'Not provided'}</p>
+                    <p><span className="font-medium">Nationality:</span> {viewingGuest.nationality}</p>
+                    <p><span className="font-medium">Age:</span> {viewingGuest.age}</p>
+                    <p><span className="font-medium">Gender:</span> {viewingGuest.gender}</p>
+                  </div>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-900">Visit Information</h4>
+                  <div className="mt-2 space-y-2">
+                    <p><span className="font-medium">Coming From:</span> {viewingGuest.comingFrom}</p>
+                    <p><span className="font-medium">Going To:</span> {viewingGuest.goingTo}</p>
+                    <p><span className="font-medium">Purpose:</span> {viewingGuest.visitPurpose}</p>
+                    <p><span className="font-medium">Room:</span> {viewingGuest.room?.number || 'Not assigned'}</p>
+                    <p><span className="font-medium">Check-in Date:</span> {viewingGuest.checkInDate 
+                      ? new Date(viewingGuest.checkInDate).toLocaleDateString()
+                      : new Date(viewingGuest.createdAt!).toLocaleDateString()}</p>
+                  </div>
+                </div>
+              </div>
+              
+              {viewingGuest.address && (
+                <div>
+                  <h4 className="font-semibold text-gray-900">Address</h4>
+                  <p className="mt-2 text-gray-700">{viewingGuest.address}</p>
+                </div>
+              )}
+              
+              {viewingGuest.signature && (
+                <div>
+                  <h4 className="font-semibold text-gray-900">Signature</h4>
+                  <div className="mt-2 border rounded-lg p-4 bg-gray-50">
+                    <img 
+                      src={viewingGuest.signature} 
+                      alt="Guest signature" 
+                      className="max-w-full h-auto"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Guest Dialog */}
+      <Dialog open={!!editingGuest} onOpenChange={(open) => !open && setEditingGuest(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Guest</DialogTitle>
+          </DialogHeader>
+          {editingGuest && (
+            <div className="space-y-4">
+              <p className="text-gray-600">Guest editing functionality coming soon. For now, use the view option to see guest details.</p>
+              <Button onClick={() => setEditingGuest(null)}>Close</Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
