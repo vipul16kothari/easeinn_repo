@@ -6,11 +6,18 @@ The platform provides enterprise-level hotel management functionality including:
 - Multi-tenancy support for hotel chains and independent properties
 - Role-based authentication (Admin and Hotelier access levels)
 - Complete guest lifecycle management (check-in, stay tracking, checkout)
+- **Advance booking management for future reservations**
 - GST-compliant invoice generation with Indian tax law compliance
-- Real-time room inventory and calendar management
+- Real-time room inventory and calendar management with booking visibility
 - Comprehensive reporting and analytics dashboard
 - Landing page with B2B pricing and registration flow
 - Responsive design optimized for desktop and tablet usage
+
+## Recent Changes (August 21, 2025)
+- **Advance Bookings System**: Complete booking management for future reservations
+- **Enhanced Calendar**: Shows both current check-ins (green) and advance bookings (blue)
+- **Improved Input Handling**: Fixed numeric input field behavior across all forms
+- **Dynamic Pricing**: Room rates stored per booking for accurate billing
 
 # User Preferences
 

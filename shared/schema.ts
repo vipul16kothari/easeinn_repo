@@ -233,6 +233,9 @@ export const insertBookingSchema = createInsertSchema(bookings).omit({
 }).extend({
   checkInDate: z.union([z.date(), z.string().transform((str) => new Date(str))]),
   checkOutDate: z.union([z.date(), z.string().transform((str) => new Date(str))]),
+  roomRate: z.union([z.string(), z.number().transform((num) => num.toString())]),
+  advanceAmount: z.union([z.string(), z.number().transform((num) => num.toString())]).optional(),
+  totalAmount: z.union([z.string(), z.number().transform((num) => num.toString())]).optional(),
 });
 
 export type InsertBooking = z.infer<typeof insertBookingSchema>;

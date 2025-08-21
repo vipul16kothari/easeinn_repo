@@ -60,7 +60,9 @@ export default function BookingsPage() {
         ...bookingData,
         checkInDate: new Date(bookingData.checkInDate),
         checkOutDate: new Date(bookingData.checkOutDate),
-        totalAmount: calculateTotal(),
+        roomRate: bookingData.roomRate.toString(),
+        advanceAmount: (bookingData.advanceAmount || 0).toString(),
+        totalAmount: calculateTotal().toString(),
       };
       return await apiRequest("POST", "/api/bookings", payload);
     },
