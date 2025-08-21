@@ -102,13 +102,16 @@ export default function Checkout({ checkInId }: CheckoutPageProps) {
        new Date(selectedCheckIn.checkInDate).getTime()) / (1000 * 60 * 60 * 24)
     ) || 1;
     
-    const roomRate = parseFloat(selectedCheckIn.room.basePrice || "0");
+    // Use the dynamic room rate from check-in, fallback to room's base price
+    const roomRate = parseFloat(selectedCheckIn.roomRate || selectedCheckIn.room.basePrice || "0");
     const additionalCharges = form.watch("additionalCharges") || 0;
     const discount = form.watch("discount") || 0;
     
     const subtotal = (roomRate * nights) + additionalCharges - discount;
-    const gstRate = 0.18; // 18% GST
-    const taxes = subtotal * gstRate;
+    // Use dynamic GST rates from check-in if available, otherwise default to 12%
+    const cgstRate = parseFloat(selectedCheckIn.cgstRate || "6") / 100;
+    const sgstRate = parseFloat(selectedCheckIn.sgstRate || "6") / 100;
+    const taxes = subtotal * (cgstRate + sgstRate);
     const total = subtotal + taxes;
     
     return { subtotal, taxes, total, nights, roomRate };
@@ -322,12 +325,12 @@ export default function Checkout({ checkInId }: CheckoutPageProps) {
                   <span>₹{bill.subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span>CGST (9%)</span>
-                  <span>₹{(bill.taxes / 2).toFixed(2)}</span>
+                  <span>CGST ({parseFloat(selectedCheckIn.cgstRate || "6").toFixed(1)}%)</span>
+                  <span>₹{(bill.subtotal * parseFloat(selectedCheckIn.cgstRate || "6") / 100).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span>SGST (9%)</span>
-                  <span>₹{(bill.taxes / 2).toFixed(2)}</span>
+                  <span>SGST ({parseFloat(selectedCheckIn.sgstRate || "6").toFixed(1)}%)</span>
+                  <span>₹{(bill.subtotal * parseFloat(selectedCheckIn.sgstRate || "6") / 100).toFixed(2)}</span>
                 </div>
                 <hr />
                 <div className="flex justify-between font-bold text-lg">

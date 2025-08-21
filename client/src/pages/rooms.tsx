@@ -18,7 +18,9 @@ export default function RoomsPage() {
   const [newRoom, setNewRoom] = useState<InsertRoom>({
     number: "",
     type: "standard",
-    status: "available"
+    status: "available",
+    basePrice: "0",
+    hotelId: ""
   });
 
   const { data: rooms = [], isLoading } = useQuery<Room[]>({
@@ -33,7 +35,7 @@ export default function RoomsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/rooms"] });
       queryClient.invalidateQueries({ queryKey: ["/api/rooms/available"] });
       setIsAddDialogOpen(false);
-      setNewRoom({ number: "", type: "standard", status: "available" });
+      setNewRoom({ number: "", type: "standard", status: "available", basePrice: "0", hotelId: "" });
       toast({
         title: "Room created",
         description: "Room has been added successfully.",
@@ -79,7 +81,19 @@ export default function RoomsPage() {
       });
       return;
     }
-    createRoomMutation.mutate(newRoom);
+    if (!newRoom.basePrice || parseFloat(newRoom.basePrice) < 0) {
+      toast({
+        title: "Error",
+        description: "Base price is required and must be positive.",
+        variant: "destructive",
+      });
+      return;
+    }
+    // Auto-assign hotel ID (for single-property setup)
+    createRoomMutation.mutate({
+      ...newRoom,
+      hotelId: "default-hotel-id"
+    });
   };
 
   const handleStatusChange = (room: Room, newStatus: string) => {
@@ -183,6 +197,22 @@ export default function RoomsPage() {
                     <SelectItem value="maintenance">Maintenance</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="base-price" className="text-right">
+                  Base Price (₹)
+                </Label>
+                <Input
+                  id="base-price"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={newRoom.basePrice}
+                  onChange={(e) => setNewRoom({ ...newRoom, basePrice: e.target.value })}
+                  className="col-span-3"
+                  placeholder="e.g., 2000.00"
+                  data-testid="input-base-price"
+                />
               </div>
             </div>
             <DialogFooter>
