@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronLeft, ChevronRight, Calendar, Users, Bed } from "lucide-react";
 import { format, addDays, startOfWeek, endOfWeek, isSameDay, parseISO } from "date-fns";
-import type { Room, CheckIn, Guest } from "@shared/schema";
+import type { Room, CheckIn, Guest, Booking } from "@shared/schema";
 
 export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -20,6 +20,10 @@ export default function CalendarPage() {
     queryKey: ["/api/checkins/active"],
   });
 
+  const { data: bookings = [] } = useQuery<Booking[]>({
+    queryKey: ["/api/bookings"],
+  });
+
   // Generate date range
   const dateRange = useMemo(() => {
     const dates = [];
@@ -29,20 +33,25 @@ export default function CalendarPage() {
     return dates;
   }, [selectedDate, viewRange]);
 
-  // Create a map of room bookings by date
+  // Create a map of room bookings by date (both current check-ins and advance bookings)
   const bookingsByRoomAndDate = useMemo(() => {
-    const bookings: Record<string, Record<string, { guest: Guest; checkIn: CheckIn & { guest: Guest; room: Room } }>> = {};
+    const roomBookings: Record<string, Record<string, { 
+      guest?: Guest; 
+      checkIn?: CheckIn & { guest: Guest; room: Room };
+      booking?: Booking;
+      type: 'checkin' | 'booking';
+    }>> = {};
     
+    // Add current check-ins (green)
     activeCheckIns.forEach((checkIn: CheckIn & { guest: Guest; room: Room }) => {
       const checkInDate = new Date(checkIn.checkInDate);
       const checkOutDate = new Date(checkIn.checkOutDate || checkIn.checkInDate);
       const roomId = checkIn.room.id;
       
-      if (!bookings[roomId]) {
-        bookings[roomId] = {};
+      if (!roomBookings[roomId]) {
+        roomBookings[roomId] = {};
       }
       
-      // Show bookings from check-in date until check-out date (exclusive)
       dateRange.forEach(date => {
         const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
         const checkInOnly = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
@@ -50,16 +59,51 @@ export default function CalendarPage() {
         
         if (dateOnly >= checkInOnly && dateOnly < checkOutOnly) {
           const dateKey = format(date, 'yyyy-MM-dd');
-          bookings[roomId][dateKey] = {
+          roomBookings[roomId][dateKey] = {
             guest: checkIn.guest,
-            checkIn
+            checkIn,
+            type: 'checkin'
           };
         }
       });
     });
+
+    // Add advance bookings (blue)
+    bookings.forEach((booking: Booking) => {
+      if (booking.bookingStatus !== 'confirmed') return;
+      
+      const checkInDate = new Date(booking.checkInDate);
+      const checkOutDate = new Date(booking.checkOutDate);
+      
+      // For advance bookings, we need to find matching room type
+      const matchingRooms = rooms.filter(room => room.type === booking.roomType);
+      
+      matchingRooms.forEach(room => {
+        if (!roomBookings[room.id]) {
+          roomBookings[room.id] = {};
+        }
+        
+        dateRange.forEach(date => {
+          const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+          const checkInOnly = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
+          const checkOutOnly = new Date(checkOutDate.getFullYear(), checkOutDate.getMonth(), checkOutDate.getDate());
+          
+          if (dateOnly >= checkInOnly && dateOnly < checkOutOnly) {
+            const dateKey = format(date, 'yyyy-MM-dd');
+            // Only add if slot is not already occupied by a check-in
+            if (!roomBookings[room.id][dateKey]) {
+              roomBookings[room.id][dateKey] = {
+                booking,
+                type: 'booking'
+              };
+            }
+          }
+        });
+      });
+    });
     
-    return bookings;
-  }, [activeCheckIns, dateRange]);
+    return roomBookings;
+  }, [activeCheckIns, bookings, dateRange, rooms]);
 
   const navigateDate = (direction: 'prev' | 'next') => {
     const days = direction === 'prev' ? -viewRange : viewRange;
@@ -71,7 +115,11 @@ export default function CalendarPage() {
     const booking = bookingsByRoomAndDate[room.id]?.[dateKey];
     
     if (booking) {
-      return "bg-red-100 border-red-300 text-red-800"; // Occupied
+      if (booking.type === 'checkin') {
+        return "bg-green-100 border-green-300 text-green-800"; // Current guest
+      } else {
+        return "bg-blue-100 border-blue-300 text-blue-800"; // Advance booking
+      }
     }
     
     switch (room.status) {
@@ -91,7 +139,11 @@ export default function CalendarPage() {
     const booking = bookingsByRoomAndDate[room.id]?.[dateKey];
     
     if (booking) {
-      return booking.guest.fullName;
+      if (booking.type === 'checkin' && booking.guest) {
+        return booking.guest.fullName;
+      } else if (booking.type === 'booking' && booking.booking) {
+        return booking.booking.guestName;
+      }
     }
     
     return room.status.charAt(0).toUpperCase() + room.status.slice(1);
@@ -290,7 +342,12 @@ export default function CalendarPage() {
                                   <>
                                     <div className="font-semibold truncate max-w-20">{statusText}</div>
                                     <div className="text-xs opacity-75">
-                                      Check-in: {format(new Date(booking.checkIn.checkInDate), 'MMM dd')}
+                                      {booking.type === 'checkin' && booking.checkIn ? 
+                                        `Check-in: ${format(new Date(booking.checkIn.checkInDate), 'MMM dd')}` :
+                                        booking.type === 'booking' && booking.booking ?
+                                        `Booking: ${format(new Date(booking.booking.checkInDate), 'MMM dd')}` :
+                                        'Unknown'
+                                      }
                                     </div>
                                   </>
                                 ) : (
@@ -316,12 +373,16 @@ export default function CalendarPage() {
           <div className="flex flex-wrap items-center gap-4">
             <h3 className="text-sm font-semibold text-gray-900">Legend:</h3>
             <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 rounded bg-green-100 border border-green-300"></div>
+              <div className="w-4 h-4 rounded bg-gray-100 border border-gray-300"></div>
               <span className="text-sm text-gray-600">Available</span>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 rounded bg-red-100 border border-red-300"></div>
-              <span className="text-sm text-gray-600">Occupied</span>
+              <div className="w-4 h-4 rounded bg-green-100 border border-green-300"></div>
+              <span className="text-sm text-gray-600">Current Guest</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 rounded bg-blue-100 border border-blue-300"></div>
+              <span className="text-sm text-gray-600">Advance Booking</span>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-4 h-4 rounded bg-yellow-100 border border-yellow-300"></div>

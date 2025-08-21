@@ -122,6 +122,21 @@ export default function CheckIn() {
   });
 
   const onSubmit = (data: CheckInFormData) => {
+    // Validate check-in date is not in the future
+    const today = new Date();
+    const checkInDate = new Date(data.checkInDate);
+    today.setHours(0, 0, 0, 0);
+    checkInDate.setHours(0, 0, 0, 0);
+    
+    if (checkInDate > today) {
+      toast({
+        title: "Invalid Check-in Date",
+        description: "Check-in date cannot be in the future. For future reservations, use the Bookings section.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     completeCheckInMutation.mutate(data);
   };
 

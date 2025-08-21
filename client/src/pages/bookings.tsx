@@ -46,6 +46,7 @@ export default function BookingsPage() {
       guestPhone: "",
       guestEmail: "",
       roomType: "standard",
+      roomNumber: "",
       numberOfRooms: 1,
       checkInDate: "",
       checkOutDate: "",
@@ -57,6 +58,16 @@ export default function BookingsPage() {
 
   const createBookingMutation = useMutation({
     mutationFn: async (bookingData: BookingFormData) => {
+      // Validate check-in date is not in the past for advance bookings
+      const today = new Date();
+      const checkInDate = new Date(bookingData.checkInDate);
+      today.setHours(0, 0, 0, 0);
+      checkInDate.setHours(0, 0, 0, 0);
+      
+      if (checkInDate < today) {
+        throw new Error("Check-in date cannot be in the past. For same-day check-ins, use the Check-in section.");
+      }
+      
       const payload = {
         ...bookingData,
         checkInDate: new Date(bookingData.checkInDate),
@@ -223,7 +234,7 @@ export default function BookingsPage() {
                 />
 
                 {/* Room Details */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <FormField
                     control={form.control}
                     name="roomType"
@@ -242,6 +253,20 @@ export default function BookingsPage() {
                             <SelectItem value="suite">Suite</SelectItem>
                           </SelectContent>
                         </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="roomNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Room Number (Optional)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., 101, 205" {...field} data-testid="input-room-number" />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -450,6 +475,12 @@ export default function BookingsPage() {
                     <Users className="h-4 w-4 text-gray-500" />
                     <span>{booking.numberOfRooms} {booking.roomType} room(s)</span>
                   </div>
+                  {booking.roomNumber && (
+                    <div className="flex items-center space-x-2">
+                      <Calendar className="h-4 w-4 text-gray-500" />
+                      <span>Room {booking.roomNumber}</span>
+                    </div>
+                  )}
                   <div className="flex items-center space-x-2">
                     <Calendar className="h-4 w-4 text-gray-500" />
                     <span>
