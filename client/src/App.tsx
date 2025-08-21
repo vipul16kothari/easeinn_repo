@@ -36,7 +36,6 @@ function Router() {
       </Route>
       <Route path="/admin/dashboard">
         <div className="min-h-screen bg-gray-50">
-          <Header />
           <AdminDashboard />
         </div>
       </Route>

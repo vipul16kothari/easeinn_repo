@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, pgEnum, boolean, decimal } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, pgEnum, boolean, decimal, json } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -39,6 +39,50 @@ export const hotels = pgTable("hotels", {
   subscriptionEndDate: timestamp("subscription_end_date"),
   subscriptionPlan: varchar("subscription_plan", { length: 50 }),
   monthlyRate: varchar("monthly_rate").default("0.00"),
+  // Hotel Configuration Options
+  maxRooms: integer("max_rooms").default(50),
+  enabledRooms: integer("enabled_rooms").default(10),
+  roomTypes: json("room_types").$type<string[]>().default(['standard', 'deluxe', 'suite']),
+  features: json("features").$type<string[]>().default(['wifi', 'ac', 'tv', 'parking']),
+  policies: json("policies").$type<{
+    checkInTime: string;
+    checkOutTime: string;
+    cancellationPolicy: string;
+    petPolicy: boolean;
+    smokingPolicy: boolean;
+  }>().default({
+    checkInTime: '14:00',
+    checkOutTime: '11:00',
+    cancellationPolicy: '24 hours',
+    petPolicy: false,
+    smokingPolicy: false
+  }),
+  pricing: json("pricing").$type<{
+    baseRate: number;
+    weekendSurcharge: number;
+    seasonalRates: Record<string, number>;
+    taxRate: number;
+  }>().default({
+    baseRate: 2000,
+    weekendSurcharge: 500,
+    seasonalRates: {},
+    taxRate: 18
+  }),
+  settings: json("settings").$type<{
+    allowAdvanceBooking: boolean;
+    advanceBookingDays: number;
+    requireApproval: boolean;
+    autoConfirm: boolean;
+    enablePayments: boolean;
+    currency: string;
+  }>().default({
+    allowAdvanceBooking: true,
+    advanceBookingDays: 90,
+    requireApproval: false,
+    autoConfirm: true,
+    enablePayments: true,
+    currency: 'INR'
+  }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

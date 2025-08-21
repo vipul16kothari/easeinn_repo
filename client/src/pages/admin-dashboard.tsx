@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, Users, Building2, DollarSign, BookOpen, UserCheck, Clock, Bed, Plus, Settings, CreditCard, Mail, UserPlus } from "lucide-react";
+import { Calendar, Users, Building2, DollarSign, BookOpen, UserCheck, Clock, Bed, Plus, Settings, CreditCard, Mail, UserPlus, LogOut } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -39,6 +39,31 @@ interface Hotel {
   monthlyRate: string;
   isActive: boolean;
   ownerName?: string;
+  maxRooms: number;
+  enabledRooms: number;
+  roomTypes: string[];
+  features: string[];
+  policies: {
+    checkInTime: string;
+    checkOutTime: string;
+    cancellationPolicy: string;
+    petPolicy: boolean;
+    smokingPolicy: boolean;
+  };
+  pricing: {
+    baseRate: number;
+    weekendSurcharge: number;
+    seasonalRates: Record<string, number>;
+    taxRate: number;
+  };
+  settings: {
+    allowAdvanceBooking: boolean;
+    advanceBookingDays: number;
+    requireApproval: boolean;
+    autoConfirm: boolean;
+    enablePayments: boolean;
+    currency: string;
+  };
 }
 
 interface HotelFormData {
@@ -151,18 +176,45 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="container mx-auto py-6 px-4 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-          <div className="text-gray-600 mt-1">
-            Welcome back, {authData?.user?.firstName} {authData?.user?.lastName}
-            <Badge variant="secondary" className="ml-2">
-              {authData?.user?.role}
-            </Badge>
+    <div className="min-h-screen bg-gray-50">
+      {/* Admin Navigation Header */}
+      <div className="bg-white shadow-sm border-b">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-8 w-8 text-blue-600" />
+                <h1 className="text-2xl font-bold text-gray-900">HotelFlow Admin</h1>
+              </div>
+              <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                Super Admin Console
+              </Badge>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <p className="text-sm font-medium text-gray-900">
+                  {authData?.user?.firstName} {authData?.user?.lastName}
+                </p>
+                <p className="text-xs text-gray-500">{authData?.user?.email}</p>
+              </div>
+              <Button variant="outline" size="sm">
+                <LogOut className="h-4 w-4 mr-1" />
+                Logout
+              </Button>
+            </div>
           </div>
         </div>
+      </div>
+
+      <div className="container mx-auto py-6 px-4 space-y-6">
+        {/* Dashboard Title */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Platform Overview</h2>
+            <p className="text-gray-600 mt-1">
+              Manage hotels, subscriptions, and platform settings
+            </p>
+          </div>
         <Dialog open={isAddHotelOpen} onOpenChange={setIsAddHotelOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2">
@@ -702,57 +754,370 @@ export default function AdminDashboard() {
 
       {/* Edit Hotel Dialog */}
       <Dialog open={isEditHotelOpen} onOpenChange={setIsEditHotelOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Hotel: {selectedHotel?.name}</DialogTitle>
+            <DialogTitle>Hotel Configuration: {selectedHotel?.name}</DialogTitle>
             <DialogDescription>
-              Update hotel information, subscription details, and settings
+              Comprehensive hotel management and configuration settings
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Hotel Name</Label>
-                <Input value={selectedHotel?.name || ""} disabled />
+          
+          <Tabs defaultValue="basic" className="mt-6">
+            <TabsList className="grid w-full grid-cols-5">
+              <TabsTrigger value="basic">Basic Info</TabsTrigger>
+              <TabsTrigger value="rooms">Room Management</TabsTrigger>
+              <TabsTrigger value="policies">Policies</TabsTrigger>
+              <TabsTrigger value="pricing">Pricing</TabsTrigger>
+              <TabsTrigger value="settings">Settings</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="basic" className="space-y-6 mt-6">
+              <div className="grid grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Hotel Information</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label>Hotel Name</Label>
+                      <Input value={selectedHotel?.name || ""} disabled />
+                    </div>
+                    <div>
+                      <Label>Phone</Label>
+                      <Input value={selectedHotel?.phone || ""} disabled />
+                    </div>
+                    <div>
+                      <Label>Email</Label>
+                      <Input value={selectedHotel?.email || ""} disabled />
+                    </div>
+                    <div>
+                      <Label>Address</Label>
+                      <textarea 
+                        className="w-full p-2 border rounded-md resize-none"
+                        rows={3}
+                        value={selectedHotel?.address || ""}
+                        disabled
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Subscription Details</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label>Current Plan</Label>
+                      <div className="p-3 bg-blue-50 rounded-lg">
+                        <p className="font-semibold capitalize">{selectedHotel?.subscriptionPlan || "N/A"}</p>
+                        <p className="text-sm text-gray-600">₹{selectedHotel?.monthlyRate || "0"}/month</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Start Date</Label>
+                        <Input 
+                          value={selectedHotel?.subscriptionStartDate ? 
+                            new Date(selectedHotel.subscriptionStartDate).toLocaleDateString() : 
+                            "N/A"} 
+                          disabled 
+                        />
+                      </div>
+                      <div>
+                        <Label>End Date</Label>
+                        <Input 
+                          value={selectedHotel?.subscriptionEndDate ? 
+                            new Date(selectedHotel.subscriptionEndDate).toLocaleDateString() : 
+                            "N/A"} 
+                          disabled 
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-              <div>
-                <Label>Phone</Label>
-                <Input value={selectedHotel?.phone || ""} disabled />
+            </TabsContent>
+
+            <TabsContent value="rooms" className="space-y-6 mt-6">
+              <div className="grid grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Room Inventory</CardTitle>
+                    <CardDescription>Control room availability and capacity</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Maximum Rooms</Label>
+                        <Input 
+                          type="number" 
+                          value={selectedHotel?.maxRooms || 50} 
+                          placeholder="50"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Total rooms hotel can manage</p>
+                      </div>
+                      <div>
+                        <Label>Enabled Rooms</Label>
+                        <Input 
+                          type="number" 
+                          value={selectedHotel?.enabledRooms || 10} 
+                          placeholder="10"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Currently active room count</p>
+                      </div>
+                    </div>
+                    
+                    <div className="p-4 bg-green-50 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium">Room Utilization</span>
+                        <span className="text-sm text-green-600">
+                          {selectedHotel?.enabledRooms || 0}/{selectedHotel?.maxRooms || 50}
+                        </span>
+                      </div>
+                      <div className="w-full bg-green-200 rounded-full h-2">
+                        <div 
+                          className="bg-green-600 h-2 rounded-full" 
+                          style={{ 
+                            width: `${((selectedHotel?.enabledRooms || 0) / (selectedHotel?.maxRooms || 50)) * 100}%` 
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Room Types</CardTitle>
+                    <CardDescription>Available room categories</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      {(selectedHotel?.roomTypes || ['standard', 'deluxe', 'suite']).map((roomType, index) => (
+                        <div key={index} className="flex items-center justify-between p-2 border rounded">
+                          <span className="capitalize font-medium">{roomType}</span>
+                          <Badge variant="outline">Available</Badge>
+                        </div>
+                      ))}
+                    </div>
+                    <Button variant="outline" size="sm" className="w-full">
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Room Type
+                    </Button>
+                  </CardContent>
+                </Card>
               </div>
-            </div>
-            <div>
-              <Label>Address</Label>
-              <Input value={selectedHotel?.address || ""} disabled />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Subscription Plan</Label>
-                <Select value={selectedHotel?.subscriptionPlan || ""} disabled>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="basic">Basic - ₹5,000/month</SelectItem>
-                    <SelectItem value="standard">Standard - ₹10,000/month</SelectItem>
-                    <SelectItem value="premium">Premium - ₹20,000/month</SelectItem>
-                    <SelectItem value="enterprise">Enterprise - ₹50,000/month</SelectItem>
-                  </SelectContent>
-                </Select>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Hotel Features</CardTitle>
+                  <CardDescription>Available amenities and services</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-4 gap-4">
+                    {(selectedHotel?.features || ['wifi', 'ac', 'tv', 'parking']).map((feature, index) => (
+                      <div key={index} className="flex items-center space-x-2">
+                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                        <span className="capitalize text-sm">{feature}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="policies" className="space-y-6 mt-6">
+              <div className="grid grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Check-in/Check-out Policies</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Check-in Time</Label>
+                        <Input value={selectedHotel?.policies?.checkInTime || "14:00"} />
+                      </div>
+                      <div>
+                        <Label>Check-out Time</Label>
+                        <Input value={selectedHotel?.policies?.checkOutTime || "11:00"} />
+                      </div>
+                    </div>
+                    <div>
+                      <Label>Cancellation Policy</Label>
+                      <Input value={selectedHotel?.policies?.cancellationPolicy || "24 hours"} />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Property Policies</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label>Pet Policy</Label>
+                      <div className="flex items-center space-x-2">
+                        <input 
+                          type="checkbox" 
+                          checked={selectedHotel?.policies?.petPolicy || false} 
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm">Allow Pets</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label>Smoking Policy</Label>
+                      <div className="flex items-center space-x-2">
+                        <input 
+                          type="checkbox" 
+                          checked={selectedHotel?.policies?.smokingPolicy || false} 
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm">Allow Smoking</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-              <div>
-                <Label>Monthly Rate</Label>
-                <Input value={`₹${selectedHotel?.monthlyRate || "0"}`} disabled />
+            </TabsContent>
+
+            <TabsContent value="pricing" className="space-y-6 mt-6">
+              <div className="grid grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Base Pricing</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label>Base Room Rate (₹/night)</Label>
+                      <Input 
+                        type="number" 
+                        value={selectedHotel?.pricing?.baseRate || 2000} 
+                        placeholder="2000"
+                      />
+                    </div>
+                    <div>
+                      <Label>Weekend Surcharge (₹)</Label>
+                      <Input 
+                        type="number" 
+                        value={selectedHotel?.pricing?.weekendSurcharge || 500} 
+                        placeholder="500"
+                      />
+                    </div>
+                    <div>
+                      <Label>Tax Rate (%)</Label>
+                      <Input 
+                        type="number" 
+                        value={selectedHotel?.pricing?.taxRate || 18} 
+                        placeholder="18"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Seasonal Pricing</CardTitle>
+                    <CardDescription>Special rates for different seasons</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="text-center py-8 text-gray-500">
+                      <Calendar className="h-8 w-8 mx-auto mb-2" />
+                      <p className="text-sm">No seasonal rates configured</p>
+                      <Button variant="outline" size="sm" className="mt-2">
+                        Add Seasonal Rate
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-            </div>
-            <div className="p-4 bg-yellow-50 rounded-lg">
-              <p className="text-sm text-yellow-800">
-                <strong>Note:</strong> Hotel editing is currently view-only. Full editing capabilities coming soon.
-              </p>
-            </div>
-          </div>
-          <div className="flex justify-end gap-2">
+            </TabsContent>
+
+            <TabsContent value="settings" className="space-y-6 mt-6">
+              <div className="grid grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Booking Settings</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label>Allow Advance Booking</Label>
+                      <div className="flex items-center space-x-2">
+                        <input 
+                          type="checkbox" 
+                          checked={selectedHotel?.settings?.allowAdvanceBooking || true} 
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm">Enabled</span>
+                      </div>
+                    </div>
+                    <div>
+                      <Label>Advance Booking Days</Label>
+                      <Input 
+                        type="number" 
+                        value={selectedHotel?.settings?.advanceBookingDays || 90} 
+                        placeholder="90"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">How many days in advance can guests book</p>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label>Auto-confirm Bookings</Label>
+                      <div className="flex items-center space-x-2">
+                        <input 
+                          type="checkbox" 
+                          checked={selectedHotel?.settings?.autoConfirm || true} 
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm">Enabled</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Payment Settings</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label>Enable Online Payments</Label>
+                      <div className="flex items-center space-x-2">
+                        <input 
+                          type="checkbox" 
+                          checked={selectedHotel?.settings?.enablePayments || true} 
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm">Enabled</span>
+                      </div>
+                    </div>
+                    <div>
+                      <Label>Currency</Label>
+                      <Select value={selectedHotel?.settings?.currency || "INR"}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="INR">INR (₹)</SelectItem>
+                          <SelectItem value="USD">USD ($)</SelectItem>
+                          <SelectItem value="EUR">EUR (€)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
             <Button variant="outline" onClick={() => setIsEditHotelOpen(false)}>
-              Close
+              Cancel
+            </Button>
+            <Button>
+              <Settings className="h-4 w-4 mr-1" />
+              Save Configuration
             </Button>
           </div>
         </DialogContent>
@@ -894,6 +1259,7 @@ export default function AdminDashboard() {
           </div>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }
