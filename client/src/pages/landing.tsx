@@ -11,7 +11,7 @@ export default function Landing() {
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-2">
             <Hotel className="h-8 w-8 text-blue-600" />
-            <h1 className="text-2xl font-bold text-gray-900">HotelHub Pro</h1>
+            <h1 className="text-2xl font-bold text-gray-900">EaseInn</h1>
           </div>
           <div className="space-x-4">
             <Link href="/login">
@@ -188,7 +188,7 @@ export default function Landing() {
             <div>
               <div className="flex items-center space-x-2 mb-4">
                 <Hotel className="h-6 w-6" />
-                <h4 className="text-lg font-semibold">HotelHub Pro</h4>
+                <h4 className="text-lg font-semibold">EaseInn</h4>
               </div>
               <p className="text-gray-400">
                 Complete hotel management solution for modern hospitality businesses.
@@ -220,7 +220,7 @@ export default function Landing() {
             </div>
           </div>
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2025 HotelHub Pro. All rights reserved.</p>
+            <p>&copy; 2025 EaseInn. All rights reserved.</p>
           </div>
         </div>
       </footer>

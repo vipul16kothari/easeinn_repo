@@ -133,7 +133,7 @@ export default function Register() {
         <CardHeader className="text-center">
           <div className="flex items-center justify-center space-x-2 mb-4">
             <Hotel className="h-8 w-8 text-blue-600" />
-            <h1 className="text-2xl font-bold text-gray-900">HotelHub Pro</h1>
+            <h1 className="text-2xl font-bold text-gray-900">EaseInn</h1>
           </div>
           <CardTitle className="text-xl">Create Your Account</CardTitle>
           <p className="text-gray-600">Start managing your hotel operations today</p>
