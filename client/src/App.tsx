@@ -8,6 +8,7 @@ import Landing from "./pages/landing";
 import Login from "./pages/login";
 import Register from "./pages/register";
 import Dashboard from "./pages/dashboard";
+import AdminDashboard from "./pages/admin-dashboard";
 import CheckIn from "./pages/check-in";
 import Checkout from "./pages/checkout";
 import Guests from "./pages/guests";
@@ -31,6 +32,12 @@ function Router() {
         <div className="min-h-screen bg-gray-50">
           <Header />
           <Dashboard />
+        </div>
+      </Route>
+      <Route path="/admin/dashboard">
+        <div className="min-h-screen bg-gray-50">
+          <Header />
+          <AdminDashboard />
         </div>
       </Route>
       <Route path="/check-in">

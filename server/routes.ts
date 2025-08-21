@@ -364,6 +364,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin statistics endpoint
+  app.get("/api/admin/stats", authenticateToken, requireRole(["admin"]), async (req, res) => {
+    try {
+      const hotels = await storage.getHotels();
+      const bookings = await storage.getBookings();
+      const activeCheckIns = await storage.getActiveCheckIns();
+      const roomStats = await storage.getRoomStatistics();
+      
+      // Calculate total revenue from all bookings
+      const totalRevenue = bookings.reduce((sum, booking) => {
+        return sum + parseFloat(booking.totalAmount || "0");
+      }, 0).toFixed(2);
+
+      // Calculate occupancy rate
+      const totalRooms = roomStats.available + roomStats.occupied + roomStats.cleaning + roomStats.maintenance;
+      const occupancyRate = totalRooms > 0 ? Math.round((roomStats.occupied / totalRooms) * 100) : 0;
+
+      const stats = {
+        totalHotels: hotels.length,
+        totalUsers: 0, // Will need to add a user count method
+        totalBookings: bookings.length,
+        totalRevenue,
+        activeCheckIns: activeCheckIns.length,
+        availableRooms: roomStats.available,
+        occupancyRate,
+      };
+
+      res.json(stats);
+    } catch (error) {
+      console.error("Admin statistics error:", error);
+      res.status(500).json({ message: "Failed to fetch admin statistics" });
+    }
+  });
+
+  // Statistics routes
+  app.get("/api/statistics/rooms", async (req, res) => {
+    try {
+      const stats = await storage.getRoomStatistics();
+      res.json(stats);
+    } catch (error) {
+      console.error("Statistics error:", error);
+      res.status(500).json({ message: "Failed to fetch room statistics" });
+    }
+  });
+
   // Checkout and invoice generation
   app.post("/api/checkout", async (req, res) => {
     try {
