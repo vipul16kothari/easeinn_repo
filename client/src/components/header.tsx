@@ -9,6 +9,7 @@ export default function Header() {
     { href: "/checkout", label: "Checkout", id: "checkout" },
     { href: "/guests", label: "Guests", id: "guests" },
     { href: "/rooms", label: "Rooms", id: "rooms" },
+    { href: "/bookings", label: "Bookings", id: "bookings" },
     { href: "/calendar", label: "Calendar", id: "calendar" },
     { href: "/reports", label: "Reports", id: "reports" },
   ];

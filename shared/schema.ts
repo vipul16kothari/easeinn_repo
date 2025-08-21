@@ -85,6 +85,27 @@ export const checkIns = pgTable("check_ins", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Advance bookings table for future reservations
+export const bookings = pgTable("bookings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  hotelId: varchar("hotel_id").notNull().references(() => hotels.id),
+  guestName: text("guest_name").notNull(),
+  guestPhone: varchar("guest_phone", { length: 20 }).notNull(),
+  guestEmail: varchar("guest_email", { length: 255 }),
+  roomType: roomTypeEnum("room_type").notNull(),
+  numberOfRooms: integer("number_of_rooms").notNull().default(1),
+  checkInDate: timestamp("check_in_date").notNull(),
+  checkOutDate: timestamp("check_out_date").notNull(),
+  roomRate: decimal("room_rate", { precision: 10, scale: 2 }).notNull(),
+  advanceAmount: decimal("advance_amount", { precision: 10, scale: 2 }).default("0.00"),
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }),
+  specialRequests: text("special_requests"),
+  bookingStatus: varchar("booking_status", { length: 20 }).notNull().default("confirmed"), // confirmed, cancelled, checked_in
+  paymentStatus: paymentStatusEnum("payment_status").default("pending"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Invoices table for GST compliant billing
 export const invoices = pgTable("invoices", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -205,5 +226,13 @@ export type InsertGuest = z.infer<typeof insertGuestSchema>;
 export type Guest = typeof guests.$inferSelect;
 export type InsertCheckIn = z.infer<typeof insertCheckInSchema>;
 export type CheckIn = typeof checkIns.$inferSelect;
+export const insertBookingSchema = createInsertSchema(bookings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertBooking = z.infer<typeof insertBookingSchema>;
+export type Booking = typeof bookings.$inferSelect;
 export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
 export type Invoice = typeof invoices.$inferSelect;

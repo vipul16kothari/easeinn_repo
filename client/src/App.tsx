@@ -13,6 +13,7 @@ import Checkout from "./pages/checkout";
 import Guests from "./pages/guests";
 import Reports from "./pages/reports";
 import Rooms from "./pages/rooms";
+import Bookings from "./pages/bookings";
 import Calendar from "./pages/calendar";
 import Header from "./components/header";
 
@@ -53,6 +54,12 @@ function Router() {
         <div className="min-h-screen bg-gray-50">
           <Header />
           <Rooms />
+        </div>
+      </Route>
+      <Route path="/bookings">
+        <div className="min-h-screen bg-gray-50">
+          <Header />
+          <Bookings />
         </div>
       </Route>
       <Route path="/calendar">

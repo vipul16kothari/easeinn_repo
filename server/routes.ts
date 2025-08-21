@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import cookieParser from "cookie-parser";
 import { storage } from "./storage";
 import { setupAuthRoutes, authenticateToken, requireRole } from "./auth";
-import { insertGuestSchema, insertCheckInSchema, insertRoomSchema } from "@shared/schema";
+import { insertGuestSchema, insertCheckInSchema, insertRoomSchema, insertBookingSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -214,6 +214,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         res.status(500).json({ message: "Failed to complete check-in" });
       }
+    }
+  });
+
+  // Booking routes
+  app.get("/api/bookings", async (req, res) => {
+    try {
+      const bookings = await storage.getBookings();
+      res.json(bookings);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch bookings" });
+    }
+  });
+
+  app.post("/api/bookings", async (req, res) => {
+    try {
+      // Add hotelId from first available hotel if missing (single-property setup)
+      let bookingData = { ...req.body };
+      if (!bookingData.hotelId) {
+        const hotels = await storage.getHotels();
+        if (hotels.length === 0) {
+          return res.status(400).json({ message: "No hotels found. Please create a hotel first." });
+        }
+        bookingData.hotelId = hotels[0].id;
+      }
+      
+      const validatedData = insertBookingSchema.parse(bookingData);
+      const booking = await storage.createBooking(validatedData);
+      res.status(201).json(booking);
+    } catch (error) {
+      console.error("Booking creation error:", error);
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: "Invalid booking data", errors: error.errors });
+      } else {
+        res.status(500).json({ message: "Failed to create booking" });
+      }
+    }
+  });
+
+  app.patch("/api/bookings/:id/status", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+      
+      const booking = await storage.updateBookingStatus(id, status);
+      if (!booking) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+      
+      res.json(booking);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update booking status" });
+    }
+  });
+
+  app.get("/api/calendar/events", async (req, res) => {
+    try {
+      const { start, end } = req.query;
+      const startDate = new Date(start as string);
+      const endDate = new Date(end as string);
+      
+      // Get both active check-ins and confirmed bookings for the date range
+      const [activeCheckIns, bookings] = await Promise.all([
+        storage.getActiveCheckIns(),
+        storage.getBookingsByDateRange(startDate, endDate)
+      ]);
+      
+      // Format events for calendar
+      const events = [
+        ...activeCheckIns.map(checkIn => ({
+          id: checkIn.id,
+          title: `${checkIn.guest.fullName} - Room ${checkIn.room.number}`,
+          start: checkIn.checkInDate,
+          end: checkIn.checkOutDate,
+          type: 'checkin',
+          color: '#059669', // green for current guests
+          extendedProps: {
+            guestName: checkIn.guest.fullName,
+            roomNumber: checkIn.room.number,
+            roomType: checkIn.room.type,
+            phone: checkIn.guest.phone
+          }
+        })),
+        ...bookings.map(booking => ({
+          id: booking.id,
+          title: `${booking.guestName} - ${booking.numberOfRooms} ${booking.roomType}`,
+          start: booking.checkInDate,
+          end: booking.checkOutDate,
+          type: 'booking',
+          color: '#3B82F6', // blue for advance bookings
+          extendedProps: {
+            guestName: booking.guestName,
+            phone: booking.guestPhone,
+            email: booking.guestEmail,
+            roomType: booking.roomType,
+            numberOfRooms: booking.numberOfRooms,
+            advanceAmount: booking.advanceAmount,
+            totalAmount: booking.totalAmount,
+            status: booking.bookingStatus
+          }
+        }))
+      ];
+      
+      res.json(events);
+    } catch (error) {
+      console.error("Calendar events error:", error);
+      res.status(500).json({ message: "Failed to fetch calendar events" });
     }
   });
 

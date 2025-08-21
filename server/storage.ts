@@ -1,11 +1,12 @@
 import { 
-  users, rooms, guests, checkIns, hotels, invoices,
+  users, rooms, guests, checkIns, hotels, invoices, bookings,
   type User, type InsertUser,
   type Room, type InsertRoom,
   type Guest, type InsertGuest,
   type CheckIn, type InsertCheckIn,
   type Hotel, type InsertHotel,
-  type Invoice, type InsertInvoice
+  type Invoice, type InsertInvoice,
+  type Booking, type InsertBooking
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, ilike, or } from "drizzle-orm";
@@ -42,6 +43,13 @@ export interface IStorage {
   createCheckIn(checkIn: InsertCheckIn): Promise<CheckIn>;
   updateCheckOut(checkInId: string, checkOutData: { actualCheckOutDate: Date; actualCheckOutTime: string; totalAmount: number; paymentStatus: string }): Promise<void>;
   checkOutGuest(guestId: string): Promise<void>;
+  
+  // Booking methods
+  getBookings(hotelId?: string): Promise<Booking[]>;
+  getBooking(id: string): Promise<Booking | undefined>;
+  createBooking(booking: InsertBooking): Promise<Booking>;
+  updateBookingStatus(id: string, status: string): Promise<Booking | undefined>;
+  getBookingsByDateRange(startDate: Date, endDate: Date, hotelId?: string): Promise<Booking[]>;
   
   // Invoice methods
   createInvoice(invoice: InsertInvoice): Promise<Invoice>;
@@ -347,6 +355,67 @@ export class DatabaseStorage implements IStorage {
         isActive: false 
       })
       .where(eq(checkIns.id, checkInId));
+  }
+
+  // Booking methods
+  async getBookings(hotelId?: string): Promise<Booking[]> {
+    if (hotelId) {
+      return await db.select().from(bookings).where(eq(bookings.hotelId, hotelId)).orderBy(bookings.checkInDate);
+    }
+    return await db.select().from(bookings).orderBy(bookings.checkInDate);
+  }
+
+  async getBooking(id: string): Promise<Booking | undefined> {
+    const [booking] = await db.select().from(bookings).where(eq(bookings.id, id));
+    return booking || undefined;
+  }
+
+  async createBooking(booking: InsertBooking): Promise<Booking> {
+    const [newBooking] = await db
+      .insert(bookings)
+      .values(booking)
+      .returning();
+    return newBooking;
+  }
+
+  async updateBookingStatus(id: string, status: string): Promise<Booking | undefined> {
+    const [booking] = await db
+      .update(bookings)
+      .set({ bookingStatus: status, updatedAt: new Date() })
+      .where(eq(bookings.id, id))
+      .returning();
+    return booking || undefined;
+  }
+
+  async getBookingsByDateRange(startDate: Date, endDate: Date, hotelId?: string): Promise<Booking[]> {
+    let query = db.select().from(bookings).where(
+      and(
+        eq(bookings.bookingStatus, "confirmed"),
+        or(
+          and(
+            // Booking starts within range
+            sql`${bookings.checkInDate} >= ${startDate}`,
+            sql`${bookings.checkInDate} <= ${endDate}`
+          ),
+          and(
+            // Booking ends within range
+            sql`${bookings.checkOutDate} >= ${startDate}`,
+            sql`${bookings.checkOutDate} <= ${endDate}`
+          ),
+          and(
+            // Booking spans the entire range
+            sql`${bookings.checkInDate} <= ${startDate}`,
+            sql`${bookings.checkOutDate} >= ${endDate}`
+          )
+        )
+      )
+    );
+
+    if (hotelId) {
+      query = query.where(eq(bookings.hotelId, hotelId));
+    }
+
+    return await query.orderBy(bookings.checkInDate);
   }
 
   // Invoice methods
