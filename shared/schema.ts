@@ -60,6 +60,8 @@ export const guests = pgTable("guests", {
   numberOfChildren: integer("number_of_children").default(0),
   purposeOfVisit: purposeEnum("purpose_of_visit"),
   destination: text("destination"),
+  documentType: varchar("document_type", { length: 50 }), // Passport, Aadhar, Driver License, etc.
+  documentNumber: varchar("document_number", { length: 50 }),
   signature: text("signature"), // Base64 encoded signature
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -74,6 +76,9 @@ export const checkIns = pgTable("check_ins", {
   checkOutTime: text("check_out_time").notNull(),
   actualCheckOutDate: timestamp("actual_check_out_date"),
   actualCheckOutTime: text("actual_check_out_time"),
+  roomRate: decimal("room_rate", { precision: 10, scale: 2 }).notNull(), // Dynamic room rate at time of booking
+  cgstRate: decimal("cgst_rate", { precision: 5, scale: 2 }).default("6.00"), // 6% CGST
+  sgstRate: decimal("sgst_rate", { precision: 5, scale: 2 }).default("6.00"), // 6% SGST
   paymentStatus: paymentStatusEnum("payment_status").default("pending"),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }),
   isActive: boolean("is_active").default(true),

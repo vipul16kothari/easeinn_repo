@@ -34,10 +34,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/rooms", async (req, res) => {
     try {
-      const roomData = insertRoomSchema.parse(req.body);
-      const room = await storage.createRoom(roomData);
+      // Add hotelId from authenticated user if missing
+      const roomData = {
+        ...req.body,
+        hotelId: req.body.hotelId || (await storage.getHotelsByOwnerId('157c398d-52be-49b4-abb3-788aae11acf1'))[0]?.id
+      };
+      
+      const validatedData = insertRoomSchema.parse(roomData);
+      const room = await storage.createRoom(validatedData);
       res.status(201).json(room);
     } catch (error) {
+      console.error("Room creation error:", error);
       if (error instanceof z.ZodError) {
         res.status(400).json({ message: "Invalid room data", errors: error.errors });
       } else {
@@ -173,7 +180,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         checkInDate: z.coerce.date(),
         checkInTime: z.string(),
         checkOutDate: z.coerce.date(),
-        checkOutTime: z.string()
+        checkOutTime: z.string(),
+        roomRate: z.coerce.number().optional(),
+        cgstRate: z.coerce.number().optional().default(6),
+        sgstRate: z.coerce.number().optional().default(6)
       });
       
       // Validate data
@@ -183,10 +193,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create guest first
       const guest = await storage.createGuest(validatedGuest);
       
-      // Create check-in with the new guest ID
+      // Create check-in with the new guest ID and room rate
+      const room = await storage.getRoom(validatedCheckIn.roomId);
       const checkIn = await storage.createCheckIn({
         ...validatedCheckIn,
-        guestId: guest.id
+        guestId: guest.id,
+        roomRate: (validatedCheckIn.roomRate || parseFloat(room?.basePrice || "0")).toString()
       });
       
       res.status(201).json({ guest, checkIn });

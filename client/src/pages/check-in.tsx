@@ -20,8 +20,13 @@ const checkInFormSchema = insertGuestSchema.extend({
   checkInTime: z.string().min(1, "Check-in time is required"),
   checkOutDate: z.string().min(1, "Check-out date is required"),
   checkOutTime: z.string().min(1, "Check-out time is required"),
+  roomRate: z.number().min(0, "Room rate must be positive"),
+  cgstRate: z.number().min(0).max(50).default(6),
+  sgstRate: z.number().min(0).max(50).default(6),
 }).extend({
   signature: z.string().nullable().optional(),
+  documentType: z.string().min(1, "Document type is required"),
+  documentNumber: z.string().min(1, "Document number is required"),
 });
 
 type CheckInFormData = z.infer<typeof checkInFormSchema>;
@@ -49,6 +54,11 @@ export default function CheckIn() {
       checkInTime: "15:00",
       checkOutDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Tomorrow
       checkOutTime: "11:00",
+      roomRate: 0,
+      cgstRate: 6,
+      sgstRate: 6,
+      documentType: "",
+      documentNumber: "",
     },
   });
 
@@ -58,7 +68,7 @@ export default function CheckIn() {
 
   const completeCheckInMutation = useMutation({
     mutationFn: async (data: CheckInFormData) => {
-      const { roomId, checkInDate, checkInTime, checkOutDate, checkOutTime, signature, ...guestData } = data;
+      const { roomId, checkInDate, checkInTime, checkOutDate, checkOutTime, roomRate, cgstRate, sgstRate, signature, ...guestData } = data;
       
       const checkInDateTime = new Date(`${checkInDate}T${checkInTime}`);
       const checkOutDateTime = new Date(`${checkOutDate}T${checkOutTime}`);
@@ -71,6 +81,9 @@ export default function CheckIn() {
           checkInTime,
           checkOutDate: checkOutDateTime,
           checkOutTime,
+          roomRate,
+          cgstRate,
+          sgstRate
         }
       };
 
@@ -251,9 +264,59 @@ export default function CheckIn() {
               </div>
             </div>
 
-            {/* Check-in Details */}
+            {/* Document Information */}
             <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="text-md font-medium text-gray-900 mb-4">Check-in Details</h3>
+              <h3 className="text-md font-medium text-gray-900 mb-4">Document Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="documentType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Document Type <span className="text-red-500">*</span></FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value} data-testid="select-document-type">
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select document type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="passport">Passport</SelectItem>
+                          <SelectItem value="aadhar">Aadhar Card</SelectItem>
+                          <SelectItem value="driving_license">Driving License</SelectItem>
+                          <SelectItem value="pan_card">PAN Card</SelectItem>
+                          <SelectItem value="voter_id">Voter ID</SelectItem>
+                          <SelectItem value="other">Other Government ID</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="documentNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Document Number <span className="text-red-500">*</span></FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Enter document number"
+                          {...field}
+                          data-testid="input-document-number"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
+            {/* Booking Details */}
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h3 className="text-md font-medium text-gray-900 mb-4">Booking Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <FormField
                   control={form.control}
@@ -332,6 +395,80 @@ export default function CheckIn() {
                       <FormLabel>Check-out Time <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
                         <Input type="time" {...field} data-testid="input-checkout-time" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
+            {/* Pricing Information */}
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h3 className="text-md font-medium text-gray-900 mb-4">Pricing & Tax Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormField
+                  control={form.control}
+                  name="roomRate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Room Rate per Night (₹) <span className="text-red-500">*</span></FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="0.00"
+                          {...field}
+                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                          data-testid="input-room-rate"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="cgstRate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>CGST Rate (%)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="50"
+                          placeholder="6.00"
+                          {...field}
+                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 6)}
+                          data-testid="input-cgst-rate"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="sgstRate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>SGST Rate (%)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="50"
+                          placeholder="6.00"
+                          {...field}
+                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 6)}
+                          data-testid="input-sgst-rate"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
