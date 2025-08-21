@@ -96,10 +96,7 @@ export default function AdminDashboard() {
 
   const addHotelMutation = useMutation({
     mutationFn: async (formData: HotelFormData) => {
-      return await apiRequest("/api/admin/hotels", {
-        method: "POST",
-        body: JSON.stringify(formData),
-      });
+      return await apiRequest("POST", "/api/admin/hotels", formData);
     },
     onSuccess: () => {
       toast({
