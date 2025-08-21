@@ -419,8 +419,16 @@ export default function CheckIn() {
                           step="0.01"
                           min="0"
                           placeholder="0.00"
-                          {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                          value={field.value || ""}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === "") {
+                              field.onChange(0);
+                            } else {
+                              field.onChange(parseFloat(value) || 0);
+                            }
+                          }}
+                          onFocus={(e) => e.target.select()}
                           data-testid="input-room-rate"
                         />
                       </FormControl>
@@ -442,8 +450,16 @@ export default function CheckIn() {
                           min="0"
                           max="50"
                           placeholder="6.00"
-                          {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 6)}
+                          value={field.value || ""}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === "") {
+                              field.onChange(6);
+                            } else {
+                              field.onChange(parseFloat(value) || 6);
+                            }
+                          }}
+                          onFocus={(e) => e.target.select()}
                           data-testid="input-cgst-rate"
                         />
                       </FormControl>
@@ -465,8 +481,16 @@ export default function CheckIn() {
                           min="0"
                           max="50"
                           placeholder="6.00"
-                          {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 6)}
+                          value={field.value || ""}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === "") {
+                              field.onChange(6);
+                            } else {
+                              field.onChange(parseFloat(value) || 6);
+                            }
+                          }}
+                          onFocus={(e) => e.target.select()}
                           data-testid="input-sgst-rate"
                         />
                       </FormControl>

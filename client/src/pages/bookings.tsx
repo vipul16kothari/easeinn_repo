@@ -254,8 +254,16 @@ export default function BookingsPage() {
                           <Input
                             type="number"
                             min="1"
-                            {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                            value={field.value || ""}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === "" || value === "0") {
+                                field.onChange(1);
+                              } else {
+                                field.onChange(parseInt(value) || 1);
+                              }
+                            }}
+                            onFocus={(e) => e.target.select()}
                             data-testid="input-number-rooms"
                           />
                         </FormControl>
@@ -275,8 +283,16 @@ export default function BookingsPage() {
                             type="number"
                             step="0.01"
                             min="0"
-                            {...field}
-                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                            value={field.value || ""}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === "") {
+                                field.onChange(0);
+                              } else {
+                                field.onChange(parseFloat(value) || 0);
+                              }
+                            }}
+                            onFocus={(e) => e.target.select()}
                             data-testid="input-room-rate"
                           />
                         </FormControl>
@@ -329,8 +345,16 @@ export default function BookingsPage() {
                           step="0.01"
                           min="0"
                           placeholder="0.00"
-                          {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                          value={field.value || ""}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === "") {
+                              field.onChange(0);
+                            } else {
+                              field.onChange(parseFloat(value) || 0);
+                            }
+                          }}
+                          onFocus={(e) => e.target.select()}
                           data-testid="input-advance-amount"
                         />
                       </FormControl>

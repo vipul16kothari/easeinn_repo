@@ -230,6 +230,9 @@ export const insertBookingSchema = createInsertSchema(bookings).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  checkInDate: z.union([z.date(), z.string().transform((str) => new Date(str))]),
+  checkOutDate: z.union([z.date(), z.string().transform((str) => new Date(str))]),
 });
 
 export type InsertBooking = z.infer<typeof insertBookingSchema>;
