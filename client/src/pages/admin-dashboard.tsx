@@ -62,6 +62,10 @@ interface HotelFormData {
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const [isAddHotelOpen, setIsAddHotelOpen] = useState(false);
+  const [selectedHotel, setSelectedHotel] = useState<Hotel | null>(null);
+  const [isEditHotelOpen, setIsEditHotelOpen] = useState(false);
+  const [isContactOwnerOpen, setIsContactOwnerOpen] = useState(false);
+  const [isBillingOpen, setIsBillingOpen] = useState(false);
   const [hotelFormData, setHotelFormData] = useState<HotelFormData>({
     name: "",
     address: "",
@@ -537,15 +541,36 @@ export default function AdminDashboard() {
                     </div>
                     
                     <div className="flex gap-2 pt-2 border-t">
-                      <Button size="sm" variant="outline">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedHotel(hotel);
+                          setIsEditHotelOpen(true);
+                        }}
+                      >
                         <Settings className="h-4 w-4 mr-1" />
                         Edit
                       </Button>
-                      <Button size="sm" variant="outline">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedHotel(hotel);
+                          setIsContactOwnerOpen(true);
+                        }}
+                      >
                         <Mail className="h-4 w-4 mr-1" />
                         Contact Owner
                       </Button>
-                      <Button size="sm" variant="outline">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedHotel(hotel);
+                          setIsBillingOpen(true);
+                        }}
+                      >
                         <CreditCard className="h-4 w-4 mr-1" />
                         Billing
                       </Button>
@@ -674,6 +699,201 @@ export default function AdminDashboard() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Edit Hotel Dialog */}
+      <Dialog open={isEditHotelOpen} onOpenChange={setIsEditHotelOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Hotel: {selectedHotel?.name}</DialogTitle>
+            <DialogDescription>
+              Update hotel information, subscription details, and settings
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Hotel Name</Label>
+                <Input value={selectedHotel?.name || ""} disabled />
+              </div>
+              <div>
+                <Label>Phone</Label>
+                <Input value={selectedHotel?.phone || ""} disabled />
+              </div>
+            </div>
+            <div>
+              <Label>Address</Label>
+              <Input value={selectedHotel?.address || ""} disabled />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Subscription Plan</Label>
+                <Select value={selectedHotel?.subscriptionPlan || ""} disabled>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="basic">Basic - ₹5,000/month</SelectItem>
+                    <SelectItem value="standard">Standard - ₹10,000/month</SelectItem>
+                    <SelectItem value="premium">Premium - ₹20,000/month</SelectItem>
+                    <SelectItem value="enterprise">Enterprise - ₹50,000/month</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Monthly Rate</Label>
+                <Input value={`₹${selectedHotel?.monthlyRate || "0"}`} disabled />
+              </div>
+            </div>
+            <div className="p-4 bg-yellow-50 rounded-lg">
+              <p className="text-sm text-yellow-800">
+                <strong>Note:</strong> Hotel editing is currently view-only. Full editing capabilities coming soon.
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsEditHotelOpen(false)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Contact Owner Dialog */}
+      <Dialog open={isContactOwnerOpen} onOpenChange={setIsContactOwnerOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Contact Hotel Owner</DialogTitle>
+            <DialogDescription>
+              Send a message or notification to the hotel owner
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Hotel</Label>
+              <Input value={selectedHotel?.name || ""} disabled />
+            </div>
+            <div>
+              <Label>Owner Name</Label>
+              <Input value={selectedHotel?.ownerName || "N/A"} disabled />
+            </div>
+            <div>
+              <Label>Message Subject</Label>
+              <Input placeholder="Enter message subject..." />
+            </div>
+            <div>
+              <Label>Message</Label>
+              <textarea 
+                className="w-full p-3 border rounded-md resize-none"
+                rows={4}
+                placeholder="Enter your message to the hotel owner..."
+              />
+            </div>
+            <div className="p-4 bg-blue-50 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>Info:</strong> This will send an email notification to the hotel owner.
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsContactOwnerOpen(false)}>
+              Cancel
+            </Button>
+            <Button>
+              <Mail className="h-4 w-4 mr-1" />
+              Send Message
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Billing Dialog */}
+      <Dialog open={isBillingOpen} onOpenChange={setIsBillingOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Billing & Subscription</DialogTitle>
+            <DialogDescription>
+              Manage subscription billing for {selectedHotel?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">Current Plan</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <p className="text-sm text-gray-600">Plan Type</p>
+                    <p className="font-semibold capitalize">{selectedHotel?.subscriptionPlan || "N/A"}</p>
+                    <p className="text-sm text-gray-600">Monthly Rate</p>
+                    <p className="font-semibold">₹{selectedHotel?.monthlyRate || "0"}/month</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">Subscription Period</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <p className="text-sm text-gray-600">Start Date</p>
+                    <p className="font-semibold">
+                      {selectedHotel?.subscriptionStartDate ? 
+                        new Date(selectedHotel.subscriptionStartDate).toLocaleDateString() : 
+                        "N/A"
+                      }
+                    </p>
+                    <p className="text-sm text-gray-600">End Date</p>
+                    <p className="font-semibold">
+                      {selectedHotel?.subscriptionEndDate ? 
+                        new Date(selectedHotel.subscriptionEndDate).toLocaleDateString() : 
+                        "N/A"
+                      }
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Billing Actions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                  <Button variant="outline" size="sm">
+                    <CreditCard className="h-4 w-4 mr-1" />
+                    Generate Invoice
+                  </Button>
+                  <Button variant="outline" size="sm">
+                    <Calendar className="h-4 w-4 mr-1" />
+                    Extend Subscription
+                  </Button>
+                  <Button variant="outline" size="sm">
+                    <DollarSign className="h-4 w-4 mr-1" />
+                    Payment History
+                  </Button>
+                  <Button variant="outline" size="sm">
+                    <Settings className="h-4 w-4 mr-1" />
+                    Change Plan
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="p-4 bg-green-50 rounded-lg">
+              <p className="text-sm text-green-800">
+                <strong>Status:</strong> Subscription is active and in good standing.
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsBillingOpen(false)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
