@@ -18,6 +18,7 @@ export interface IStorage {
   
   // Hotel methods
   getHotel(id: string): Promise<Hotel | undefined>;
+  getHotels(): Promise<Hotel[]>;
   getHotelsByOwnerId(ownerId: string): Promise<Hotel[]>;
   createHotel(hotel: InsertHotel): Promise<Hotel>;
   
@@ -81,6 +82,10 @@ export class DatabaseStorage implements IStorage {
     return hotel || undefined;
   }
 
+  async getHotels(): Promise<Hotel[]> {
+    return await db.select().from(hotels);
+  }
+
   async getHotelsByOwnerId(ownerId: string): Promise<Hotel[]> {
     return await db.select().from(hotels).where(eq(hotels.ownerId, ownerId));
   }
@@ -142,6 +147,8 @@ export class DatabaseStorage implements IStorage {
         numberOfChildren: guests.numberOfChildren,
         purposeOfVisit: guests.purposeOfVisit,
         destination: guests.destination,
+        documentType: guests.documentType,
+        documentNumber: guests.documentNumber,
         signature: guests.signature,
         createdAt: guests.createdAt,
         room: rooms,
@@ -325,14 +332,20 @@ export class DatabaseStorage implements IStorage {
       isActive: result.isActive,
       createdAt: result.createdAt,
       guest: result.guest,
-      room: { ...result.room, hotel: result.hotel }
+      room: { ...result.room, hotel: result.hotel || undefined }
     };
   }
 
   async updateCheckOut(checkInId: string, checkOutData: { actualCheckOutDate: Date; actualCheckOutTime: string; totalAmount: number; paymentStatus: string }): Promise<void> {
     await db
       .update(checkIns)
-      .set({ ...checkOutData, isActive: false })
+      .set({ 
+        actualCheckOutDate: checkOutData.actualCheckOutDate,
+        actualCheckOutTime: checkOutData.actualCheckOutTime,
+        totalAmount: checkOutData.totalAmount.toString(),
+        paymentStatus: checkOutData.paymentStatus as "pending" | "paid" | "partial" | "refunded",
+        isActive: false 
+      })
       .where(eq(checkIns.id, checkInId));
   }
 

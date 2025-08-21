@@ -89,11 +89,8 @@ export default function RoomsPage() {
       });
       return;
     }
-    // Auto-assign hotel ID (for single-property setup)
-    createRoomMutation.mutate({
-      ...newRoom,
-      hotelId: "default-hotel-id"
-    });
+    // Hotel ID will be auto-assigned by the server
+    createRoomMutation.mutate(newRoom);
   };
 
   const handleStatusChange = (room: Room, newStatus: string) => {

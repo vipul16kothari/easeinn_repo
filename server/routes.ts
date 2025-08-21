@@ -34,11 +34,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/rooms", async (req, res) => {
     try {
-      // Add hotelId from authenticated user if missing
-      const roomData = {
-        ...req.body,
-        hotelId: req.body.hotelId || (await storage.getHotelsByOwnerId('157c398d-52be-49b4-abb3-788aae11acf1'))[0]?.id
-      };
+      // Add hotelId from first available hotel if missing (single-property setup)
+      let roomData = { ...req.body };
+      if (!roomData.hotelId) {
+        const hotels = await storage.getHotels();
+        if (hotels.length === 0) {
+          return res.status(400).json({ message: "No hotels found. Please create a hotel first." });
+        }
+        roomData.hotelId = hotels[0].id;
+      }
       
       const validatedData = insertRoomSchema.parse(roomData);
       const room = await storage.createRoom(validatedData);
@@ -198,7 +202,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const checkIn = await storage.createCheckIn({
         ...validatedCheckIn,
         guestId: guest.id,
-        roomRate: (validatedCheckIn.roomRate || parseFloat(room?.basePrice || "0")).toString()
+        roomRate: (validatedCheckIn.roomRate || parseFloat(room?.basePrice || "0")).toString(),
+        cgstRate: validatedCheckIn.cgstRate?.toString() || "6.00",
+        sgstRate: validatedCheckIn.sgstRate?.toString() || "6.00"
       });
       
       res.status(201).json({ guest, checkIn });
