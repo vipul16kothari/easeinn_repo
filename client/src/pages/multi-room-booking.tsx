@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Plus, Minus, ArrowLeft, Users, IndianRupee } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useHotelConfig } from "@/hooks/useHotelConfig";
 
 const roomSchema = z.object({
   roomType: z.enum(["standard", "deluxe", "suite"]),
@@ -32,16 +34,40 @@ const multiRoomBookingSchema = z.object({
 
 type MultiRoomBookingForm = z.infer<typeof multiRoomBookingSchema>;
 
-const roomTypeRates = {
-  standard: 2000,
-  deluxe: 3500,
-  suite: 5000,
-};
+// Room rates will be dynamically loaded from hotel config
 
 export default function MultiRoomBooking() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: authData } = useAuth();
+
+  // Fetch hotel data to get configuration
+  const { data: hotel } = useQuery({
+    queryKey: ["/api/hotel"],
+    enabled: authData?.user?.role === "hotelier",
+  });
+
+  // Get hotel configuration from admin settings
+  const { config: hotelConfig, isLoading: configLoading } = useHotelConfig(hotel?.id);
+
+  // Get room rates from hotel configuration
+  const getRoomRate = (roomType: string) => {
+    if (hotelConfig.pricing) {
+      const baseRate = hotelConfig.pricing.baseRate || 2000;
+      switch (roomType) {
+        case "deluxe":
+          return Math.floor(baseRate * 1.5);
+        case "suite":
+          return Math.floor(baseRate * 2.5);
+        default:
+          return baseRate;
+      }
+    }
+    // Fallback rates if config not loaded
+    const fallbackRates = { standard: 2000, deluxe: 3000, suite: 5000 };
+    return fallbackRates[roomType as keyof typeof fallbackRates] || 2000;
+  };
 
   const form = useForm<MultiRoomBookingForm>({
     resolver: zodResolver(multiRoomBookingSchema),
@@ -53,7 +79,7 @@ export default function MultiRoomBooking() {
       checkOutDate: "",
       advanceAmount: 0,
       specialRequests: "",
-      rooms: [{ roomType: "deluxe", roomNumber: "", roomRate: roomTypeRates.deluxe }],
+      rooms: [{ roomType: "deluxe", roomNumber: "", roomRate: getRoomRate("deluxe") }],
     },
   });
 
@@ -117,6 +143,32 @@ export default function MultiRoomBooking() {
       return;
     }
 
+    // Check admin settings for advance booking
+    if (hotelConfig.settings && !hotelConfig.settings.allowAdvanceBooking) {
+      // Check if this is a same-day booking
+      const daysDifference = Math.ceil((checkInDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysDifference > 1) {
+        toast({
+          title: "Advance Booking Disabled",
+          description: "This property only accepts same-day bookings",
+          variant: "destructive",
+        });
+        return;
+      }
+    } else if (hotelConfig.settings && hotelConfig.settings.advanceBookingDays) {
+      // Check advance booking days limit
+      const maxAdvanceDays = hotelConfig.settings.advanceBookingDays;
+      const daysDifference = Math.ceil((checkInDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysDifference > maxAdvanceDays) {
+        toast({
+          title: "Booking Too Far in Advance",
+          description: `Bookings can only be made up to ${maxAdvanceDays} days in advance`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     if (checkOutDate <= checkInDate) {
       toast({
         title: "Invalid Date",
@@ -133,7 +185,7 @@ export default function MultiRoomBooking() {
     const currentRooms = form.getValues("rooms");
     form.setValue("rooms", [
       ...currentRooms,
-      { roomType: "deluxe", roomNumber: "", roomRate: roomTypeRates.deluxe },
+      { roomType: "deluxe", roomNumber: "", roomRate: getRoomRate("deluxe") },
     ]);
   };
 
@@ -149,7 +201,7 @@ export default function MultiRoomBooking() {
     currentRooms[index] = {
       ...currentRooms[index],
       roomType,
-      roomRate: roomTypeRates[roomType],
+      roomRate: getRoomRate(roomType),
     };
     form.setValue("rooms", currentRooms);
   };
@@ -342,9 +394,11 @@ export default function MultiRoomBooking() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="standard">Standard (₹{roomTypeRates.standard}/night)</SelectItem>
-                          <SelectItem value="deluxe">Deluxe (₹{roomTypeRates.deluxe}/night)</SelectItem>
-                          <SelectItem value="suite">Suite (₹{roomTypeRates.suite}/night)</SelectItem>
+                          {(hotelConfig.roomTypes || ["standard", "deluxe", "suite"]).map((roomType) => (
+                            <SelectItem key={roomType} value={roomType}>
+                              {roomType.charAt(0).toUpperCase() + roomType.slice(1)} Room (₹{getRoomRate(roomType)}/night)
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>

@@ -555,6 +555,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get specific hotel by ID (for configuration access)
+  app.get("/api/hotels/:id", authenticateToken, async (req, res) => {
+    try {
+      const hotelId = req.params.id;
+      const hotel = await storage.getHotel(hotelId);
+
+      if (!hotel) {
+        return res.status(404).json({ message: "Hotel not found" });
+      }
+
+      // Check if user has access to this hotel
+      if (req.user?.role === "hotelier") {
+        const userHotels = await storage.getHotelsByOwnerId(req.user.id);
+        if (!userHotels.some(h => h.id === hotelId)) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      }
+
+      res.json(hotel);
+    } catch (error) {
+      console.error("Hotel fetch error:", error);
+      res.status(500).json({ message: "Failed to fetch hotel" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
