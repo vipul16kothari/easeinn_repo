@@ -491,6 +491,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update hotel configuration
+  app.patch("/api/admin/hotels/:id", authenticateToken, requireRole(["admin"]), async (req, res) => {
+    try {
+      const hotelId = req.params.id;
+      const updates = req.body;
+      
+      const updatedHotel = await storage.updateHotel(hotelId, updates);
+      res.json(updatedHotel);
+    } catch (error) {
+      console.error("Admin update hotel error:", error);
+      res.status(500).json({ message: "Failed to update hotel" });
+    }
+  });
+
   // Statistics routes
   app.get("/api/statistics/rooms", async (req, res) => {
     try {

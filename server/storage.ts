@@ -24,6 +24,7 @@ export interface IStorage {
   getHotels(): Promise<Hotel[]>;
   getHotelsByOwnerId(ownerId: string): Promise<Hotel[]>;
   createHotel(hotel: InsertHotel): Promise<Hotel>;
+  updateHotel(id: string, updates: Partial<Hotel>): Promise<Hotel>;
   
   // Room methods
   getRooms(hotelId?: string): Promise<Room[]>;
@@ -107,6 +108,15 @@ export class DatabaseStorage implements IStorage {
       .values(hotel)
       .returning();
     return newHotel;
+  }
+
+  async updateHotel(id: string, updates: Partial<Hotel>): Promise<Hotel> {
+    const [updatedHotel] = await db
+      .update(hotels)
+      .set(updates)
+      .where(eq(hotels.id, id))
+      .returning();
+    return updatedHotel;
   }
 
   async getRooms(): Promise<Room[]> {

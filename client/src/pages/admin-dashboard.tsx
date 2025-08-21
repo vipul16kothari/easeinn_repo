@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar, Users, Building2, DollarSign, BookOpen, UserCheck, Clock, Bed, Plus, Settings, CreditCard, Mail, UserPlus, LogOut } from "lucide-react";
+import { X, Save } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -91,6 +92,7 @@ export default function AdminDashboard() {
   const [isEditHotelOpen, setIsEditHotelOpen] = useState(false);
   const [isContactOwnerOpen, setIsContactOwnerOpen] = useState(false);
   const [isBillingOpen, setIsBillingOpen] = useState(false);
+  const [editingHotelConfig, setEditingHotelConfig] = useState<Partial<Hotel>>({});
   const [hotelFormData, setHotelFormData] = useState<HotelFormData>({
     name: "",
     address: "",
@@ -121,6 +123,29 @@ export default function AdminDashboard() {
 
   const { data: hotels } = useQuery<Hotel[]>({
     queryKey: ["/api/admin/hotels"],
+  });
+
+  const updateHotelMutation = useMutation({
+    mutationFn: async ({ hotelId, updates }: { hotelId: string; updates: Partial<Hotel> }) => {
+      return await apiRequest("PATCH", `/api/admin/hotels/${hotelId}`, updates);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Hotel configuration updated successfully",
+      });
+      setIsEditHotelOpen(false);
+      setEditingHotelConfig({});
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/hotels"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update hotel",
+        variant: "destructive",
+      });
+    },
   });
 
   const addHotelMutation = useMutation({
@@ -625,6 +650,7 @@ export default function AdminDashboard() {
                         variant="outline"
                         onClick={() => {
                           setSelectedHotel(hotel);
+                          setEditingHotelConfig({});
                           setIsEditHotelOpen(true);
                         }}
                       >
@@ -807,23 +833,32 @@ export default function AdminDashboard() {
                   <CardContent className="space-y-4">
                     <div>
                       <Label>Hotel Name</Label>
-                      <Input value={selectedHotel?.name || ""} disabled />
+                      <Input 
+                        value={editingHotelConfig.name || selectedHotel?.name || ""} 
+                        onChange={(e) => setEditingHotelConfig({...editingHotelConfig, name: e.target.value})}
+                      />
                     </div>
                     <div>
                       <Label>Phone</Label>
-                      <Input value={selectedHotel?.phone || ""} disabled />
+                      <Input 
+                        value={editingHotelConfig.phone || selectedHotel?.phone || ""} 
+                        onChange={(e) => setEditingHotelConfig({...editingHotelConfig, phone: e.target.value})}
+                      />
                     </div>
                     <div>
                       <Label>Email</Label>
-                      <Input value={selectedHotel?.email || ""} disabled />
+                      <Input 
+                        value={editingHotelConfig.email || selectedHotel?.email || ""} 
+                        onChange={(e) => setEditingHotelConfig({...editingHotelConfig, email: e.target.value})}
+                      />
                     </div>
                     <div>
                       <Label>Address</Label>
                       <textarea 
                         className="w-full p-2 border rounded-md resize-none"
                         rows={3}
-                        value={selectedHotel?.address || ""}
-                        disabled
+                        value={editingHotelConfig.address || selectedHotel?.address || ""}
+                        onChange={(e) => setEditingHotelConfig({...editingHotelConfig, address: e.target.value})}
                       />
                     </div>
                   </CardContent>
@@ -879,7 +914,8 @@ export default function AdminDashboard() {
                         <Label>Maximum Rooms</Label>
                         <Input 
                           type="number" 
-                          value={selectedHotel?.maxRooms || 50} 
+                          value={editingHotelConfig.maxRooms || selectedHotel?.maxRooms || 50} 
+                          onChange={(e) => setEditingHotelConfig({...editingHotelConfig, maxRooms: parseInt(e.target.value) || 50})}
                           placeholder="50"
                         />
                         <p className="text-xs text-gray-500 mt-1">Total rooms hotel can manage</p>
@@ -888,7 +924,8 @@ export default function AdminDashboard() {
                         <Label>Enabled Rooms</Label>
                         <Input 
                           type="number" 
-                          value={selectedHotel?.enabledRooms || 10} 
+                          value={editingHotelConfig.enabledRooms || selectedHotel?.enabledRooms || 10} 
+                          onChange={(e) => setEditingHotelConfig({...editingHotelConfig, enabledRooms: parseInt(e.target.value) || 10})}
                           placeholder="10"
                         />
                         <p className="text-xs text-gray-500 mt-1">Currently active room count</p>
@@ -899,14 +936,14 @@ export default function AdminDashboard() {
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-medium">Room Utilization</span>
                         <span className="text-sm text-green-600">
-                          {selectedHotel?.enabledRooms || 0}/{selectedHotel?.maxRooms || 50}
+                          {editingHotelConfig.enabledRooms || selectedHotel?.enabledRooms || 0}/{editingHotelConfig.maxRooms || selectedHotel?.maxRooms || 50}
                         </span>
                       </div>
                       <div className="w-full bg-green-200 rounded-full h-2">
                         <div 
                           className="bg-green-600 h-2 rounded-full" 
                           style={{ 
-                            width: `${((selectedHotel?.enabledRooms || 0) / (selectedHotel?.maxRooms || 50)) * 100}%` 
+                            width: `${((editingHotelConfig.enabledRooms || selectedHotel?.enabledRooms || 0) / (editingHotelConfig.maxRooms || selectedHotel?.maxRooms || 50)) * 100}%` 
                           }}
                         ></div>
                       </div>
@@ -921,14 +958,43 @@ export default function AdminDashboard() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
-                      {(selectedHotel?.roomTypes || ['standard', 'deluxe', 'suite']).map((roomType, index) => (
+                      {(editingHotelConfig.roomTypes || selectedHotel?.roomTypes || ['standard', 'deluxe', 'suite']).map((roomType, index) => (
                         <div key={index} className="flex items-center justify-between p-2 border rounded">
                           <span className="capitalize font-medium">{roomType}</span>
-                          <Badge variant="outline">Available</Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline">Available</Badge>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const currentRoomTypes = editingHotelConfig.roomTypes || selectedHotel?.roomTypes || [];
+                                setEditingHotelConfig({
+                                  ...editingHotelConfig,
+                                  roomTypes: currentRoomTypes.filter((_, i) => i !== index)
+                                });
+                              }}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     </div>
-                    <Button variant="outline" size="sm" className="w-full">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full"
+                      onClick={() => {
+                        const newRoomType = prompt("Enter new room type name:");
+                        if (newRoomType?.trim()) {
+                          const currentRoomTypes = editingHotelConfig.roomTypes || selectedHotel?.roomTypes || ['standard', 'deluxe', 'suite'];
+                          setEditingHotelConfig({
+                            ...editingHotelConfig,
+                            roomTypes: [...currentRoomTypes, newRoomType.trim().toLowerCase()]
+                          });
+                        }
+                      }}
+                    >
                       <Plus className="h-4 w-4 mr-1" />
                       Add Room Type
                     </Button>
@@ -1021,7 +1087,15 @@ export default function AdminDashboard() {
                       <Label>Base Room Rate (₹/night)</Label>
                       <Input 
                         type="number" 
-                        value={selectedHotel?.pricing?.baseRate || 2000} 
+                        value={editingHotelConfig.pricing?.baseRate || selectedHotel?.pricing?.baseRate || 2000} 
+                        onChange={(e) => setEditingHotelConfig({
+                          ...editingHotelConfig, 
+                          pricing: {
+                            ...editingHotelConfig.pricing,
+                            ...selectedHotel?.pricing,
+                            baseRate: parseInt(e.target.value) || 2000
+                          }
+                        })}
                         placeholder="2000"
                       />
                     </div>
@@ -1029,7 +1103,15 @@ export default function AdminDashboard() {
                       <Label>Weekend Surcharge (₹)</Label>
                       <Input 
                         type="number" 
-                        value={selectedHotel?.pricing?.weekendSurcharge || 500} 
+                        value={editingHotelConfig.pricing?.weekendSurcharge || selectedHotel?.pricing?.weekendSurcharge || 500} 
+                        onChange={(e) => setEditingHotelConfig({
+                          ...editingHotelConfig, 
+                          pricing: {
+                            ...editingHotelConfig.pricing,
+                            ...selectedHotel?.pricing,
+                            weekendSurcharge: parseInt(e.target.value) || 500
+                          }
+                        })}
                         placeholder="500"
                       />
                     </div>
@@ -1037,7 +1119,15 @@ export default function AdminDashboard() {
                       <Label>Tax Rate (%)</Label>
                       <Input 
                         type="number" 
-                        value={selectedHotel?.pricing?.taxRate || 18} 
+                        value={editingHotelConfig.pricing?.taxRate || selectedHotel?.pricing?.taxRate || 18} 
+                        onChange={(e) => setEditingHotelConfig({
+                          ...editingHotelConfig, 
+                          pricing: {
+                            ...editingHotelConfig.pricing,
+                            ...selectedHotel?.pricing,
+                            taxRate: parseInt(e.target.value) || 18
+                          }
+                        })}
                         placeholder="18"
                       />
                     </div>
@@ -1142,9 +1232,19 @@ export default function AdminDashboard() {
             <Button variant="outline" onClick={() => setIsEditHotelOpen(false)}>
               Cancel
             </Button>
-            <Button>
-              <Settings className="h-4 w-4 mr-1" />
-              Save Configuration
+            <Button 
+              onClick={() => {
+                if (selectedHotel) {
+                  updateHotelMutation.mutate({
+                    hotelId: selectedHotel.id,
+                    updates: editingHotelConfig
+                  });
+                }
+              }}
+              disabled={updateHotelMutation.isPending}
+            >
+              <Save className="h-4 w-4 mr-1" />
+              {updateHotelMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </div>
         </DialogContent>
