@@ -20,6 +20,7 @@ const bookingSchema = z.object({
   guestPhone: z.string().min(10, "Valid phone number is required"),
   guestEmail: z.string().email("Valid email is required").optional().or(z.literal("")),
   roomType: z.enum(["standard", "deluxe", "suite"]),
+  roomNumber: z.string().optional(),
   numberOfRooms: z.number().min(1, "At least 1 room required"),
   checkInDate: z.string().min(1, "Check-in date is required"),
   checkOutDate: z.string().min(1, "Check-out date is required"),

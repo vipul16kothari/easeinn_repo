@@ -93,6 +93,7 @@ export const bookings = pgTable("bookings", {
   guestPhone: varchar("guest_phone", { length: 20 }).notNull(),
   guestEmail: varchar("guest_email", { length: 255 }),
   roomType: roomTypeEnum("room_type").notNull(),
+  roomNumber: varchar("room_number", { length: 10 }), // Optional specific room number
   numberOfRooms: integer("number_of_rooms").notNull().default(1),
   checkInDate: timestamp("check_in_date").notNull(),
   checkOutDate: timestamp("check_out_date").notNull(),
