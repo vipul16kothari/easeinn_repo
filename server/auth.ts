@@ -195,6 +195,7 @@ export function setupAuthRoutes(app: Express) {
           lastName: user.lastName,
           role: user.role,
         },
+        hotel: hotels.length > 0 ? hotels[0] : null, // Send full hotel config for frontend
         hotels,
       });
     } catch (error) {

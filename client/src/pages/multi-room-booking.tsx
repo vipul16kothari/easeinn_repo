@@ -40,21 +40,12 @@ export default function MultiRoomBooking() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { data: authData } = useAuth();
-
-  // Fetch hotel data to get configuration
-  const { data: hotel } = useQuery({
-    queryKey: ["/api/hotel"],
-    enabled: authData?.user?.role === "hotelier",
-  });
-
-  // Get hotel configuration from admin settings
-  const { config: hotelConfig, isLoading: configLoading } = useHotelConfig(hotel?.id);
+  const { hotel, config } = useHotelConfig();
 
   // Get room rates from hotel configuration
   const getRoomRate = (roomType: string) => {
-    if (hotelConfig.pricing) {
-      const baseRate = hotelConfig.pricing.baseRate || 2000;
+    if (config.pricing) {
+      const baseRate = config.pricing.baseRate || 2000;
       switch (roomType) {
         case "deluxe":
           return Math.floor(baseRate * 1.5);
@@ -249,7 +240,9 @@ export default function MultiRoomBooking() {
           <Users className="h-8 w-8 text-blue-600" />
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Multi-Room Booking</h1>
-            <p className="text-gray-600">Book multiple rooms with individual pricing</p>
+            <p className="text-gray-600">
+              {hotel?.name ? `${hotel.name} - ` : ''}Book multiple rooms with individual pricing
+            </p>
           </div>
         </div>
       </div>

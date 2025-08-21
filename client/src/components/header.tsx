@@ -1,7 +1,9 @@
 import { Link, useLocation } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Header() {
   const [location] = useLocation();
+  const { user, hotel } = useAuth();
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard", id: "dashboard" },
@@ -26,7 +28,8 @@ export default function Header() {
             <div className="flex-shrink-0">
               <Link href="/" data-testid="logo-link">
                 <h1 className="text-xl font-bold text-primary-700">
-                  <i className="fas fa-hotel mr-2"></i>HotelFlow
+                  <i className="fas fa-hotel mr-2"></i>
+                  {hotel?.name || 'HotelFlow'}
                 </h1>
               </Link>
             </div>
@@ -50,14 +53,21 @@ export default function Header() {
           <div className="flex items-center space-x-4">
             <div className="text-right">
               <div className="text-sm font-medium text-gray-900" data-testid="user-name">
-                Sarah Johnson
+                {user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.email || 'User'}
               </div>
               <div className="text-xs text-gray-500" data-testid="user-role">
-                Front Desk Staff
+                {user?.role === 'hotelier' ? 'Hotel Manager' : 'Front Desk Staff'}
+                {hotel?.name && user?.role === 'hotelier' && (
+                  <span className="block">{hotel.name}</span>
+                )}
               </div>
             </div>
             <div className="w-8 h-8 bg-primary-500 rounded-full flex items-center justify-center" data-testid="user-avatar">
-              <span className="text-white text-sm font-medium">SJ</span>
+              <span className="text-white text-sm font-medium">
+                {user?.firstName && user?.lastName 
+                  ? `${user.firstName[0]}${user.lastName[0]}` 
+                  : user?.email?.[0]?.toUpperCase() || 'U'}
+              </span>
             </div>
           </div>
         </div>

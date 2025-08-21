@@ -1,12 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
-import { Hotel } from "@shared/schema";
+import { useAuth } from "./useAuth";
 
-export function useHotelConfig(hotelId?: string) {
-  const { data: hotel, isLoading } = useQuery<Hotel>({
-    queryKey: ["/api/hotels", hotelId],
-    enabled: !!hotelId,
-  });
-
+export function useHotelConfig() {
+  const { hotel, isLoading } = useAuth();
+  
   return {
     hotel,
     isLoading,
