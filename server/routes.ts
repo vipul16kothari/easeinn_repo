@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import cookieParser from "cookie-parser";
 import { storage } from "./storage";
 import { setupAuthRoutes, authenticateToken, requireRole } from "./auth";
+import bcrypt from "bcryptjs";
 import { insertGuestSchema, insertCheckInSchema, insertRoomSchema, insertBookingSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -377,6 +378,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return sum + parseFloat(booking.totalAmount || "0");
       }, 0).toFixed(2);
 
+      // Calculate monthly revenue (current month)
+      const currentMonth = new Date().getMonth();
+      const currentYear = new Date().getFullYear();
+      const monthlyRevenue = bookings.filter(booking => {
+        const bookingDate = new Date(booking.createdAt);
+        return bookingDate.getMonth() === currentMonth && bookingDate.getFullYear() === currentYear;
+      }).reduce((sum, booking) => {
+        return sum + parseFloat(booking.totalAmount || "0");
+      }, 0).toFixed(2);
+
+      // Calculate yearly revenue (current year)
+      const yearlyRevenue = bookings.filter(booking => {
+        const bookingDate = new Date(booking.createdAt);
+        return bookingDate.getFullYear() === currentYear;
+      }).reduce((sum, booking) => {
+        return sum + parseFloat(booking.totalAmount || "0");
+      }, 0).toFixed(2);
+
       // Calculate occupancy rate
       const totalRooms = roomStats.available + roomStats.occupied + roomStats.cleaning + roomStats.maintenance;
       const occupancyRate = totalRooms > 0 ? Math.round((roomStats.occupied / totalRooms) * 100) : 0;
@@ -386,6 +405,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalUsers: 0, // Will need to add a user count method
         totalBookings: bookings.length,
         totalRevenue,
+        monthlyRevenue,
+        yearlyRevenue,
         activeCheckIns: activeCheckIns.length,
         availableRooms: roomStats.available,
         occupancyRate,
@@ -395,6 +416,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Admin statistics error:", error);
       res.status(500).json({ message: "Failed to fetch admin statistics" });
+    }
+  });
+
+  // Admin hotels management
+  app.get("/api/admin/hotels", authenticateToken, requireRole(["admin"]), async (req, res) => {
+    try {
+      const hotels = await storage.getHotels();
+      res.json(hotels);
+    } catch (error) {
+      console.error("Admin hotels error:", error);
+      res.status(500).json({ message: "Failed to fetch hotels" });
+    }
+  });
+
+  // Create new hotel with owner
+  app.post("/api/admin/hotels", authenticateToken, requireRole(["admin"]), async (req, res) => {
+    try {
+      const hotelData = req.body;
+      
+      // Create owner user first
+      const hashedPassword = await bcrypt.hash(hotelData.ownerPassword, 12);
+      const ownerUser = await storage.createUser({
+        email: hotelData.ownerEmail,
+        password: hashedPassword,
+        role: "hotelier",
+        firstName: hotelData.ownerFirstName,
+        lastName: hotelData.ownerLastName,
+      });
+
+      // Create hotel with subscription details
+      const hotel = await storage.createHotel({
+        name: hotelData.name,
+        address: hotelData.address,
+        phone: hotelData.phone,
+        email: hotelData.email,
+        gstNumber: hotelData.gstNumber || null,
+        panNumber: hotelData.panNumber || null,
+        stateCode: hotelData.stateCode,
+        ownerId: ownerUser.id,
+        subscriptionStartDate: new Date(hotelData.subscriptionStartDate),
+        subscriptionEndDate: new Date(hotelData.subscriptionEndDate),
+        subscriptionPlan: hotelData.subscriptionPlan,
+        monthlyRate: hotelData.monthlyRate,
+      });
+
+      res.status(201).json({
+        hotel,
+        owner: {
+          id: ownerUser.id,
+          email: ownerUser.email,
+          firstName: ownerUser.firstName,
+          lastName: ownerUser.lastName,
+        }
+      });
+    } catch (error) {
+      console.error("Admin create hotel error:", error);
+      res.status(500).json({ message: "Failed to create hotel" });
     }
   });
 

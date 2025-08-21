@@ -35,6 +35,10 @@ export const hotels = pgTable("hotels", {
   stateCode: varchar("state_code", { length: 2 }), // For GST
   ownerId: varchar("owner_id").references(() => users.id),
   isActive: boolean("is_active").default(true),
+  subscriptionStartDate: timestamp("subscription_start_date"),
+  subscriptionEndDate: timestamp("subscription_end_date"),
+  subscriptionPlan: varchar("subscription_plan", { length: 50 }),
+  monthlyRate: varchar("monthly_rate").default("0.00"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
