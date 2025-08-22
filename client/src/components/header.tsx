@@ -27,7 +27,7 @@ export default function Header() {
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center min-w-0 flex-1">
             <div className="flex-shrink-0">
-              <Link href="/" data-testid="logo-link">
+              <Link href="/dashboard" data-testid="logo-link">
                 <h1 className="text-xl font-bold text-primary-700">
                   <i className="fas fa-hotel mr-2"></i>
                   {hotel?.name || 'EaseInn'}

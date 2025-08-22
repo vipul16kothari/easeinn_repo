@@ -5,10 +5,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Mail, Phone, MapPin, Clock, MessageSquare, Headphones, Bug, CreditCard } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Contact() {
+  useEffect(() => {
+    document.title = "Contact Us - EaseInn Hotel Management Support";
+    
+    const metaDescription = document.querySelector('meta[name="description"]');
+    if (metaDescription) {
+      metaDescription.setAttribute('content', 'Get in touch with EaseInn support team. Contact us for technical help, billing questions, feature requests, or general inquiries about our hotel management platform.');
+    }
+  }, []);
   const { toast } = useToast();
   const [formData, setFormData] = useState({
     name: "",

@@ -1,8 +1,17 @@
+import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Shield, Eye, Lock, Database, Users, Mail } from "lucide-react";
 
 export default function Privacy() {
+  useEffect(() => {
+    document.title = "Privacy Policy - EaseInn Hotel Management Platform";
+    
+    const metaDescription = document.querySelector('meta[name="description"]');
+    if (metaDescription) {
+      metaDescription.setAttribute('content', 'Learn how EaseInn protects your privacy and secures your hotel and guest data. Our comprehensive privacy policy covers data collection, usage, and protection measures for our hotel PMS.');
+    }
+  }, []);
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="container mx-auto px-4 max-w-4xl">

@@ -1,9 +1,18 @@
+import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { RefreshCw, Calendar, CreditCard, AlertTriangle, CheckCircle, XCircle, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function Refunds() {
+  useEffect(() => {
+    document.title = "Refunds & Cancellation Policy - EaseInn Hotel Management";
+    
+    const metaDescription = document.querySelector('meta[name="description"]');
+    if (metaDescription) {
+      metaDescription.setAttribute('content', 'Understand EaseInn\'s refund and cancellation policy. Learn about refund timeframes, cancellation terms, and how to process refunds for our hotel management platform subscriptions.');
+    }
+  }, []);
   const refundTimeframes = [
     {
       method: "Razorpay (Cards/UPI)",

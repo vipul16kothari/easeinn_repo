@@ -1,8 +1,17 @@
+import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { FileText, Calendar, Shield, AlertTriangle } from "lucide-react";
 
 export default function Terms() {
+  useEffect(() => {
+    document.title = "Terms & Conditions - EaseInn Hotel Management Platform";
+    
+    const metaDescription = document.querySelector('meta[name="description"]');
+    if (metaDescription) {
+      metaDescription.setAttribute('content', 'Read EaseInn\'s Terms & Conditions for our hotel management platform. Understand your rights, responsibilities, and our service policies for comprehensive hotel PMS solutions.');
+    }
+  }, []);
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="container mx-auto px-4 max-w-4xl">

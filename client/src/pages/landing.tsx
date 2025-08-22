@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5,6 +6,24 @@ import { Badge } from "@/components/ui/badge";
 import { Hotel, Users, Receipt, BarChart3, Shield, Clock, Star, ArrowRight, CheckCircle, Sparkles, Zap, Globe, Calendar } from "lucide-react";
 
 export default function Landing() {
+  useEffect(() => {
+    document.title = "EaseInn - Comprehensive Hotel Management Platform | Multi-Property PMS";
+    
+    const metaDescription = document.querySelector('meta[name="description"]');
+    if (metaDescription) {
+      metaDescription.setAttribute('content', 'Transform your hotel operations with EaseInn\'s AI-powered management platform. Features multi-property support, real-time inventory, GST-compliant invoicing, and integrated Razorpay payments. Trusted by 500+ hotels worldwide.');
+    }
+
+    const ogTitle = document.querySelector('meta[property="og:title"]');
+    if (ogTitle) {
+      ogTitle.setAttribute('content', 'EaseInn - Transform Hotel Operations with AI-Powered Management');
+    }
+
+    const ogDescription = document.querySelector('meta[property="og:description"]');
+    if (ogDescription) {
+      ogDescription.setAttribute('content', 'Comprehensive B2B hotel management platform with multi-property support, real-time inventory tracking, automated check-ins, and integrated payment solutions.');
+    }
+  }, []);
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-50 via-blue-50 to-cyan-50 relative overflow-hidden">
       {/* Animated Background Elements */}

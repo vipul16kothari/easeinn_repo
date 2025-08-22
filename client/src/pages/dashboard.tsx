@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import StatsCard from "@/components/stats-card";
 import RoomCard from "@/components/room-card";
 import { Room } from "@shared/schema";
@@ -11,6 +11,14 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMutation } from "@tanstack/react-query";
 
 export default function Dashboard() {
+  useEffect(() => {
+    document.title = "Hotel Dashboard - EaseInn Management Platform";
+    
+    const metaDescription = document.querySelector('meta[name="description"]');
+    if (metaDescription) {
+      metaDescription.setAttribute('content', 'Manage your hotel operations efficiently with EaseInn dashboard. Monitor room availability, track occupancy, manage bookings, and view real-time statistics from your comprehensive hotel management interface.');
+    }
+  }, []);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [roomTypeFilter, setRoomTypeFilter] = useState("all");
   const { toast } = useToast();

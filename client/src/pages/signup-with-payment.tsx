@@ -80,6 +80,16 @@ export default function SignupWithPayment() {
     confirmPassword: ""
   });
 
+  // SEO optimization
+  useEffect(() => {
+    document.title = "Sign Up & Choose Plan - EaseInn Hotel Management";
+    
+    const metaDescription = document.querySelector('meta[name="description"]');
+    if (metaDescription) {
+      metaDescription.setAttribute('content', 'Start your hotel management journey with EaseInn. Choose from Hotelier Plan (₹2,999) or Enterprise Plan (₹9,999) with secure Razorpay payment processing. Get started in minutes with our comprehensive hotel PMS.');
+    }
+  }, []);
+
   // Get plan from URL params
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
