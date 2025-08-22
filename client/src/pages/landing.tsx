@@ -292,7 +292,7 @@ export default function Landing() {
                     Email support
                   </div>
                 </div>
-                <Link href="/register?plan=hotelier" className="block mt-8">
+                <Link href="/signup?plan=hotelier" className="block mt-8">
                   <Button className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200" data-testid="button-choose-hotelier">
                     Get Started <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
@@ -340,7 +340,7 @@ export default function Landing() {
                     Dedicated account manager
                   </div>
                 </div>
-                <Link href="/register?plan=enterprise" className="block mt-8">
+                <Link href="/signup?plan=enterprise" className="block mt-8">
                   <Button className="w-full py-3 bg-white text-purple-600 hover:bg-gray-50 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200" data-testid="button-choose-enterprise">
                     Choose Enterprise <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>

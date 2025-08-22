@@ -736,6 +736,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // Registration with payment endpoint
+  app.post("/api/register-with-payment", async (req, res) => {
+    try {
+      const { plan, hotel, owner } = req.body;
+      
+      if (!plan || !hotel || !owner) {
+        return res.status(400).json({ message: "Missing required registration data" });
+      }
+
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(owner.email);
+      if (existingUser) {
+        return res.status(400).json({ message: "A user with this email already exists" });
+      }
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(owner.password, 10);
+
+      // Create user first
+      const userData = {
+        ...owner,
+        password: hashedPassword,
+        role: "hotelier" as const
+      };
+
+      const user = await storage.createUser(userData);
+
+      // Create hotel with owner reference
+      const hotelData = {
+        ...hotel,
+        ownerId: user.id,
+        subscriptionPlan: plan.name,
+        maxRooms: plan.maxRooms || 50,
+        enabledRooms: Math.min(plan.maxRooms || 50, 10) // Start with 10 rooms enabled
+      };
+
+      const newHotel = await storage.createHotel(hotelData);
+
+      // Create payment order
+      const order = await createSubscriptionOrder(newHotel.id, plan.price, plan.name);
+
+      res.status(201).json({
+        message: "Registration successful, proceed with payment",
+        user: { id: user.id, email: user.email, role: user.role },
+        hotel: { id: newHotel.id, name: newHotel.name },
+        order
+      });
+
+    } catch (error) {
+      console.error("Registration with payment error:", error);
+      res.status(500).json({ message: "Failed to process registration" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

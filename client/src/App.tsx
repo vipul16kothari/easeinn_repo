@@ -22,6 +22,7 @@ import Terms from "./pages/terms";
 import Privacy from "./pages/privacy";
 import Contact from "./pages/contact";
 import Refunds from "./pages/refunds";
+import SignupWithPayment from "./pages/signup-with-payment";
 import Header from "./components/header";
 
 function Router() {
@@ -31,6 +32,7 @@ function Router() {
       <Route path="/" component={Landing} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
+      <Route path="/signup" component={SignupWithPayment} />
       
       {/* Authenticated routes with header */}
       <Route path="/dashboard">
