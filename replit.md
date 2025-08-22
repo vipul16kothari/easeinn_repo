@@ -22,6 +22,8 @@ The platform provides enterprise-level hotel management functionality including:
 - **Guest Management**: Fixed view/edit buttons with detailed guest information dialogs
 - **Header Layout**: Resolved UI overlap issues with improved responsive design
 - **Hotel-User Linking**: Complete integration between admin settings and hotelier interface
+- **Razorpay Payment Integration**: Complete payment gateway with subscription billing, booking payments, and secure transaction processing
+- **Payment Dashboard**: Modern payments page with subscription plans, payment history, and Razorpay checkout integration
 
 ## Previous Changes (August 21, 2025)
 - **Advance Bookings System**: Complete booking management for future reservations

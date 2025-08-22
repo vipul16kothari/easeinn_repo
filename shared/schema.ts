@@ -39,6 +39,9 @@ export const hotels = pgTable("hotels", {
   subscriptionEndDate: timestamp("subscription_end_date"),
   subscriptionPlan: varchar("subscription_plan", { length: 50 }),
   monthlyRate: varchar("monthly_rate").default("0.00"),
+  // Razorpay integration fields
+  razorpayCustomerId: varchar("razorpay_customer_id", { length: 100 }),
+  razorpaySubscriptionId: varchar("razorpay_subscription_id", { length: 100 }),
   // Hotel Configuration Options
   maxRooms: integer("max_rooms").default(50),
   enabledRooms: integer("enabled_rooms").default(10),
@@ -198,6 +201,23 @@ export const invoices = pgTable("invoices", {
   paymentStatus: paymentStatusEnum("payment_status").default("pending"),
   issuedAt: timestamp("issued_at").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Payments table for Razorpay integration
+export const payments = pgTable("payments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  hotelId: varchar("hotel_id").notNull().references(() => hotels.id),
+  razorpayOrderId: varchar("razorpay_order_id", { length: 100 }),
+  razorpayPaymentId: varchar("razorpay_payment_id", { length: 100 }),
+  razorpaySignature: varchar("razorpay_signature", { length: 256 }),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 3 }).default("INR"),
+  paymentStatus: varchar("payment_status", { length: 20 }).default("pending"), // pending, success, failed
+  paymentType: varchar("payment_type", { length: 20 }).notNull(), // subscription, booking, advance
+  description: text("description"),
+  receiptId: varchar("receipt_id", { length: 100 }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const usersRelations = relations(users, ({ many }) => ({

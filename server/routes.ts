@@ -6,6 +6,13 @@ import { setupAuthRoutes, authenticateToken, requireRole } from "./auth";
 import bcrypt from "bcryptjs";
 import { insertGuestSchema, insertCheckInSchema, insertRoomSchema, insertBookingSchema } from "@shared/schema";
 import { z } from "zod";
+import { 
+  createSubscriptionOrder, 
+  createBookingOrder, 
+  verifyPaymentSignature, 
+  updatePaymentStatus,
+  getHotelPayments 
+} from "./razorpay";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Middleware
@@ -625,6 +632,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Hotel fetch error:", error);
       res.status(500).json({ message: "Failed to fetch hotel" });
     }
+  });
+
+  // Razorpay Payment Routes
+  
+  // Create subscription payment order
+  app.post("/api/payments/subscription", authenticateToken, async (req: any, res) => {
+    try {
+      const { amount, planName } = req.body;
+      
+      if (!amount || !planName) {
+        return res.status(400).json({ message: "Amount and plan name are required" });
+      }
+
+      // Get user's hotel (assuming single hotel per user for now)
+      const hotels = await storage.getHotels();
+      const userHotel = hotels.find(hotel => hotel.ownerId === req.user.id);
+      
+      if (!userHotel) {
+        return res.status(400).json({ message: "No hotel found for user" });
+      }
+
+      const order = await createSubscriptionOrder(userHotel.id, amount, planName);
+      res.json(order);
+    } catch (error) {
+      console.error("Subscription payment error:", error);
+      res.status(500).json({ message: "Failed to create subscription payment" });
+    }
+  });
+
+  // Create booking payment order
+  app.post("/api/payments/booking", authenticateToken, async (req: any, res) => {
+    try {
+      const { amount, bookingId, guestName } = req.body;
+      
+      if (!amount || !bookingId || !guestName) {
+        return res.status(400).json({ message: "Amount, booking ID and guest name are required" });
+      }
+
+      // Get user's hotel
+      const hotels = await storage.getHotels();
+      const userHotel = hotels.find(hotel => hotel.ownerId === req.user.id);
+      
+      if (!userHotel) {
+        return res.status(400).json({ message: "No hotel found for user" });
+      }
+
+      const order = await createBookingOrder(userHotel.id, amount, bookingId, guestName);
+      res.json(order);
+    } catch (error) {
+      console.error("Booking payment error:", error);
+      res.status(500).json({ message: "Failed to create booking payment" });
+    }
+  });
+
+  // Verify payment callback
+  app.post("/api/payments/verify", authenticateToken, async (req: any, res) => {
+    try {
+      const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+      
+      if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+        return res.status(400).json({ message: "Missing payment verification data" });
+      }
+
+      const isValid = verifyPaymentSignature(razorpay_order_id, razorpay_payment_id, razorpay_signature);
+      
+      if (isValid) {
+        await updatePaymentStatus(razorpay_order_id, razorpay_payment_id, razorpay_signature, 'success');
+        res.json({ status: 'success', message: 'Payment verified successfully' });
+      } else {
+        await updatePaymentStatus(razorpay_order_id, razorpay_payment_id, razorpay_signature, 'failed');
+        res.status(400).json({ status: 'failed', message: 'Payment verification failed' });
+      }
+    } catch (error) {
+      console.error("Payment verification error:", error);
+      res.status(500).json({ message: "Failed to verify payment" });
+    }
+  });
+
+  // Get payment history for hotel
+  app.get("/api/payments/history", authenticateToken, async (req: any, res) => {
+    try {
+      // Get user's hotel
+      const hotels = await storage.getHotels();
+      const userHotel = hotels.find(hotel => hotel.ownerId === req.user.id);
+      
+      if (!userHotel) {
+        return res.status(400).json({ message: "No hotel found for user" });
+      }
+
+      const payments = await getHotelPayments(userHotel.id);
+      res.json(payments);
+    } catch (error) {
+      console.error("Payment history error:", error);
+      res.status(500).json({ message: "Failed to fetch payment history" });
+    }
+  });
+
+  // Razorpay config endpoint (public key)
+  app.get("/api/payments/config", (req, res) => {
+    res.json({
+      razorpay_key_id: process.env.RAZORPAY_KEY_ID || "",
+    });
   });
 
   const httpServer = createServer(app);

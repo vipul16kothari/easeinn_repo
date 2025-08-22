@@ -13,6 +13,7 @@ export default function Header() {
     { href: "/rooms", label: "Rooms", id: "rooms" },
     { href: "/bookings", label: "Bookings", id: "bookings" },
     { href: "/calendar", label: "Calendar", id: "calendar" },
+    { href: "/payments", label: "Payments", id: "payments" },
     { href: "/reports", label: "Reports", id: "reports" },
   ];
 
