@@ -686,8 +686,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Verify payment callback
-  app.post("/api/payments/verify", authenticateToken, async (req: any, res) => {
+  // Verify payment callback (public for registration flow)
+  app.post("/api/payments/verify", async (req, res) => {
     try {
       const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
       

@@ -174,21 +174,28 @@ export default function SignupWithPayment() {
       order_id: order.id,
       handler: async (response: any) => {
         try {
-          await apiRequest("POST", "/api/payments/verify", {
+          const verifyResponse = await apiRequest("POST", "/api/payments/verify", {
             razorpay_order_id: response.razorpay_order_id,
             razorpay_payment_id: response.razorpay_payment_id,
             razorpay_signature: response.razorpay_signature,
           });
           
-          toast({
-            title: "Registration Successful!",
-            description: "Your payment was processed and account created successfully",
-          });
+          const verifyResult = await verifyResponse.json();
           
-          // Redirect to login with success message
-          setLocation("/login?registered=true");
+          if (verifyResult.status === 'success') {
+            toast({
+              title: "Registration Successful!",
+              description: "Your payment was processed and account created successfully",
+            });
+            
+            // Redirect to login with success message
+            setLocation("/login?registered=true");
+          } else {
+            throw new Error("Payment verification failed");
+          }
           
         } catch (error) {
+          console.error("Payment verification error:", error);
           toast({
             title: "Payment Verification Failed",
             description: "Please contact support for assistance",
