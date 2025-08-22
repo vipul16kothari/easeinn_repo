@@ -351,9 +351,11 @@ export default function Landing() {
           
           <div className="text-center mt-12">
             <p className="text-gray-600 mb-4">Need a custom solution? We've got you covered.</p>
-            <Button variant="outline" size="lg" className="px-8 py-3 border-purple-300 text-purple-600 hover:bg-purple-50">
-              Contact Sales
-            </Button>
+            <a href="mailto:vipul16kothari@gmail.com?subject=EaseInn%20Custom%20Solution%20Inquiry&body=Hi%2C%20I'm%20interested%20in%20a%20custom%20solution%20for%20my%20hotel%20property.%20Please%20contact%20me%20to%20discuss%20further.">
+              <Button variant="outline" size="lg" className="px-8 py-3 border-purple-300 text-purple-600 hover:bg-purple-50">
+                Contact Sales
+              </Button>
+            </a>
           </div>
         </div>
       </section>
