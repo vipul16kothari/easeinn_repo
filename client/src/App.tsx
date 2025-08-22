@@ -18,6 +18,10 @@ import Bookings from "./pages/bookings";
 import Calendar from "./pages/calendar";
 import MultiRoomBooking from "./pages/multi-room-booking";
 import Payments from "./pages/payments";
+import Terms from "./pages/terms";
+import Privacy from "./pages/privacy";
+import Contact from "./pages/contact";
+import Refunds from "./pages/refunds";
 import Header from "./components/header";
 
 function Router() {
@@ -94,6 +98,12 @@ function Router() {
           <Payments />
         </div>
       </Route>
+      
+      {/* Policy pages - public access */}
+      <Route path="/terms" component={Terms} />
+      <Route path="/privacy" component={Privacy} />
+      <Route path="/contact" component={Contact} />
+      <Route path="/refunds" component={Refunds} />
       
       <Route component={NotFound} />
     </Switch>

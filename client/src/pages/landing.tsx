@@ -405,10 +405,20 @@ export default function Landing() {
             <div>
               <h5 className="font-bold text-lg mb-6 text-white">Support</h5>
               <ul className="space-y-3 text-gray-300">
+                <li><a href="/contact" className="hover:text-blue-400 transition-colors hover:underline">Contact Us</a></li>
                 <li><a href="#" className="hover:text-blue-400 transition-colors hover:underline">Help Center</a></li>
-                <li><a href="#" className="hover:text-blue-400 transition-colors hover:underline">Contact Us</a></li>
                 <li><a href="#" className="hover:text-blue-400 transition-colors hover:underline">Training</a></li>
                 <li><a href="#" className="hover:text-blue-400 transition-colors hover:underline">Status Page</a></li>
+              </ul>
+            </div>
+            
+            <div>
+              <h5 className="font-bold text-lg mb-6 text-white">Legal</h5>
+              <ul className="space-y-3 text-gray-300">
+                <li><a href="/terms" className="hover:text-blue-400 transition-colors hover:underline">Terms & Conditions</a></li>
+                <li><a href="/privacy" className="hover:text-blue-400 transition-colors hover:underline">Privacy Policy</a></li>
+                <li><a href="/refunds" className="hover:text-blue-400 transition-colors hover:underline">Refunds & Cancellation</a></li>
+                <li><a href="mailto:vipul16kothari@gmail.com" className="hover:text-blue-400 transition-colors hover:underline">Legal Inquiries</a></li>
               </ul>
             </div>
           </div>
@@ -419,9 +429,10 @@ export default function Landing() {
                 &copy; 2025 EaseInn. All rights reserved. Made with ❤️ for hoteliers.
               </p>
               <div className="flex items-center space-x-6 text-gray-400">
-                <a href="#" className="hover:text-blue-400 transition-colors">Privacy Policy</a>
-                <a href="#" className="hover:text-blue-400 transition-colors">Terms of Service</a>
-                <a href="#" className="hover:text-blue-400 transition-colors">Cookie Policy</a>
+                <a href="/privacy" className="hover:text-blue-400 transition-colors">Privacy Policy</a>
+                <a href="/terms" className="hover:text-blue-400 transition-colors">Terms of Service</a>
+                <a href="/refunds" className="hover:text-blue-400 transition-colors">Refunds</a>
+                <a href="/contact" className="hover:text-blue-400 transition-colors">Contact</a>
               </div>
             </div>
           </div>

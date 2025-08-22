@@ -24,6 +24,8 @@ The platform provides enterprise-level hotel management functionality including:
 - **Hotel-User Linking**: Complete integration between admin settings and hotelier interface
 - **Razorpay Payment Integration**: Complete payment gateway with subscription billing, booking payments, and secure transaction processing
 - **Payment Dashboard**: Modern payments page with subscription plans, payment history, and Razorpay checkout integration
+- **Legal Compliance Pages**: Complete Terms & Conditions, Privacy Policy, Contact Us, and Refunds & Cancellation policy pages with professional legal content
+- **Footer Navigation**: Updated landing page footer with proper links to all policy pages and contact information
 
 ## Previous Changes (August 21, 2025)
 - **Advance Bookings System**: Complete booking management for future reservations
