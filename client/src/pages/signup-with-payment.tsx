@@ -96,7 +96,8 @@ export default function SignupWithPayment() {
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const config = await apiRequest("GET", "/api/payments/config");
+        const response = await apiRequest("GET", "/api/payments/config");
+        const config = await response.json();
         setRazorpayKey(config.razorpay_key_id);
       } catch (error) {
         console.error("Failed to fetch Razorpay config:", error);
@@ -120,10 +121,11 @@ export default function SignupWithPayment() {
   // Registration mutation
   const registerMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest("POST", "/api/register-with-payment", data);
+      const response = await apiRequest("POST", "/api/register-with-payment", data);
+      return await response.json();
     },
-    onSuccess: (response) => {
-      handleRazorpayPayment(response.order, response.hotelId);
+    onSuccess: (data) => {
+      handleRazorpayPayment(data.order, data.hotel.id);
     },
     onError: (error) => {
       toast({

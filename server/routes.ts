@@ -731,6 +731,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Razorpay config endpoint (public key)
   app.get("/api/payments/config", (req, res) => {
+
     res.json({
       razorpay_key_id: process.env.RAZORPAY_KEY_ID || "",
     });
@@ -765,7 +766,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create hotel with owner reference
       const hotelData = {
-        ...hotel,
+        name: hotel.name,
+        address: hotel.address,
+        phone: hotel.phone,
+        email: hotel.email,
+        gstNumber: hotel.gstNumber,
+        panNumber: hotel.panNumber,
+        stateCode: hotel.stateCode,
         ownerId: user.id,
         subscriptionPlan: plan.name,
         maxRooms: plan.maxRooms || 50,
