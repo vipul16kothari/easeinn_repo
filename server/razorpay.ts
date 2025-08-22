@@ -20,10 +20,13 @@ export function createRazorpayInstance() {
 export async function createSubscriptionOrder(hotelId: string, amount: number, planName: string) {
   const razorpay = createRazorpayInstance();
   
+  const receiptId = `R${Math.random().toString(36).substr(2, 8)}`;
+
+  
   const options = {
     amount: amount * 100, // Razorpay expects amount in paise
     currency: 'INR',
-    receipt: `hotel_${hotelId}_${Date.now()}`,
+    receipt: receiptId,
     notes: {
       hotel_id: hotelId,
       plan: planName,

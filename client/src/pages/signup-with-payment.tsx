@@ -127,12 +127,22 @@ export default function SignupWithPayment() {
     onSuccess: (data) => {
       handleRazorpayPayment(data.order, data.hotel.id);
     },
-    onError: (error) => {
-      toast({
-        title: "Registration Error",
-        description: error.message || "Failed to create account",
-        variant: "destructive",
-      });
+    onError: (error: any) => {
+      const errorData = error.message ? JSON.parse(error.message.split(': ')[1] || '{}') : {};
+      
+      if (errorData.errorCode === "USER_EXISTS") {
+        toast({
+          title: "Email Already Registered",
+          description: "This email is already associated with an account. Please use a different email or sign in.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Registration Error",
+          description: errorData.message || error.message || "Failed to create account",
+          variant: "destructive",
+        });
+      }
     },
   });
 
