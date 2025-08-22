@@ -32,7 +32,7 @@ const loginSchema = z.object({
 });
 
 export function setupAuthRoutes(app: Express) {
-  // Registration endpoint
+  // Regular registration (no trial)
   app.post("/api/auth/register", async (req: Request, res: Response) => {
     try {
       const validatedData = registrationSchema.parse(req.body);
@@ -57,7 +57,7 @@ export function setupAuthRoutes(app: Express) {
       
       const user = await storage.createUser(userData);
       
-      // Create hotel
+      // Create hotel (no subscription initially)
       const hotelData = {
         name: validatedData.hotelName,
         address: validatedData.hotelAddress,
@@ -67,6 +67,9 @@ export function setupAuthRoutes(app: Express) {
         panNumber: validatedData.panNumber || null,
         stateCode: validatedData.stateCode,
         ownerId: user.id,
+        subscriptionPlan: null, // No subscription initially
+        subscriptionStartDate: null,
+        subscriptionEndDate: null,
       };
       
       const hotel = await storage.createHotel(hotelData);
@@ -94,6 +97,84 @@ export function setupAuthRoutes(app: Express) {
         });
       }
       res.status(500).json({ message: "Registration failed" });
+    }
+  });
+
+  // Trial registration (14-day free trial)
+  app.post("/api/auth/register-trial", async (req: Request, res: Response) => {
+    try {
+      const validatedData = registrationSchema.parse(req.body);
+      
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(validatedData.email);
+      if (existingUser) {
+        return res.status(400).json({ message: "User already exists with this email" });
+      }
+      
+      // Hash password
+      const hashedPassword = await bcrypt.hash(validatedData.password, 12);
+      
+      // Create user
+      const userData = {
+        email: validatedData.email,
+        password: hashedPassword,
+        role: "hotelier" as const,
+        firstName: validatedData.firstName,
+        lastName: validatedData.lastName,
+      };
+      
+      const user = await storage.createUser(userData);
+      
+      // Create hotel with 14-day trial
+      const now = new Date();
+      const trialEnd = new Date(now);
+      trialEnd.setDate(trialEnd.getDate() + 14); // 14 days from now
+      
+      const hotelData = {
+        name: validatedData.hotelName,
+        address: validatedData.hotelAddress,
+        phone: validatedData.hotelPhone,
+        email: validatedData.hotelEmail,
+        gstNumber: validatedData.gstNumber || null,
+        panNumber: validatedData.panNumber || null,
+        stateCode: validatedData.stateCode,
+        ownerId: user.id,
+        subscriptionPlan: "trial",
+        subscriptionStartDate: now,
+        subscriptionEndDate: trialEnd,
+        monthlyRate: "0.00", // Trial is free
+      };
+      
+      const hotel = await storage.createHotel(hotelData);
+      
+      res.status(201).json({
+        message: "Trial registration successful",
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+        },
+        hotel: {
+          id: hotel.id,
+          name: hotel.name,
+        },
+        trial: {
+          startDate: now,
+          endDate: trialEnd,
+          daysRemaining: 14,
+        },
+      });
+    } catch (error) {
+      console.error("Trial registration error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          message: "Validation error",
+          errors: error.errors,
+        });
+      }
+      res.status(500).json({ message: "Trial registration failed" });
     }
   });
 
@@ -183,8 +264,29 @@ export function setupAuthRoutes(app: Express) {
       }
       
       let hotels: any[] = [];
+      let trialStatus = null;
+      
       if (user.role === "hotelier") {
         hotels = await storage.getHotelsByOwnerId(user.id);
+        
+        // Check trial status for first hotel
+        if (hotels.length > 0 && hotels[0].subscriptionPlan === "trial") {
+          const hotel = hotels[0];
+          const now = new Date();
+          const endDate = new Date(hotel.subscriptionEndDate);
+          
+          if (endDate) {
+            const daysRemaining = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+            const isExpired = now > endDate;
+            
+            trialStatus = {
+              isTrialUser: true,
+              isExpired,
+              daysRemaining: Math.max(0, daysRemaining),
+              endDate: endDate.toISOString(),
+            };
+          }
+        }
       }
       
       res.json({
@@ -195,8 +297,9 @@ export function setupAuthRoutes(app: Express) {
           lastName: user.lastName,
           role: user.role,
         },
-        hotel: hotels.length > 0 ? hotels[0] : null, // Send full hotel config for frontend
+        hotel: hotels.length > 0 ? hotels[0] : null,
         hotels,
+        trialStatus,
       });
     } catch (error) {
       console.error("Get user error:", error);
@@ -257,4 +360,56 @@ export function requireHotelOwner(req: any, res: Response, next: NextFunction) {
   
   // For hotelier, we'll verify hotel ownership in the route handler
   next();
+}
+
+// Trial expiration middleware
+export function checkTrialExpiration(req: any, res: Response, next: NextFunction) {
+  // Skip trial check for non-authenticated routes
+  if (!req.user) {
+    return next();
+  }
+  
+  // Admin users bypass trial checks
+  if (req.user.role === "admin") {
+    return next();
+  }
+  
+  // Only check for hoteliers
+  if (req.user.role !== "hotelier") {
+    return next();
+  }
+  
+  // Get user's hotel and check trial status
+  storage.getHotelsByOwnerId(req.user.userId).then((hotels) => {
+    if (hotels.length === 0) {
+      return next();
+    }
+    
+    const hotel = hotels[0];
+    
+    // Only check trial users
+    if (hotel.subscriptionPlan === "trial" && hotel.subscriptionEndDate) {
+      const now = new Date();
+      const endDate = new Date(hotel.subscriptionEndDate);
+      
+      if (now > endDate) {
+        // Trial expired - allow only payments and auth routes
+        const allowedPaths = ['/api/auth/', '/api/payments/', '/api/logout'];
+        const isAllowedPath = allowedPaths.some(path => req.path.startsWith(path));
+        
+        if (!isAllowedPath) {
+          return res.status(402).json({ 
+            message: "Trial period expired. Please upgrade your subscription to continue.",
+            trialExpired: true,
+            endDate: endDate.toISOString()
+          });
+        }
+      }
+    }
+    
+    next();
+  }).catch((error) => {
+    console.error("Trial check error:", error);
+    next();
+  });
 }

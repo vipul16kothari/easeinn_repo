@@ -54,7 +54,7 @@ export default function Landing() {
                 Sign In
               </Button>
             </Link>
-            <Link href="/register">
+            <Link href="/signup">
               <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200" data-testid="button-register">
                 Get Started <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
@@ -90,7 +90,7 @@ export default function Landing() {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-              <Link href="/register">
+              <Link href="/register?trial=true">
                 <Button size="lg" className="px-8 py-4 text-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-2xl hover:shadow-blue-500/25 transform hover:scale-105 transition-all duration-300" data-testid="button-start-trial">
                   <Zap className="mr-2 h-5 w-5" />
                   Start Free Trial

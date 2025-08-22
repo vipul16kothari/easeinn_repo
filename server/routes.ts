@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import cookieParser from "cookie-parser";
 import { storage } from "./storage";
-import { setupAuthRoutes, authenticateToken, requireRole } from "./auth";
+import { setupAuthRoutes, authenticateToken, requireRole, checkTrialExpiration } from "./auth";
 import bcrypt from "bcryptjs";
 import { insertGuestSchema, insertCheckInSchema, insertRoomSchema, insertBookingSchema } from "@shared/schema";
 import { z } from "zod";
@@ -21,8 +21,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
   setupAuthRoutes(app);
   
-  // Room routes
-  app.get("/api/rooms", async (req, res) => {
+  // Room routes (protected)
+  app.get("/api/rooms", authenticateToken, checkTrialExpiration, async (req, res) => {
     try {
       const rooms = await storage.getRooms();
       res.json(rooms);
@@ -31,7 +31,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/rooms/available", async (req, res) => {
+  app.get("/api/rooms/available", authenticateToken, checkTrialExpiration, async (req, res) => {
     try {
       const rooms = await storage.getAvailableRooms();
       res.json(rooms);
@@ -40,7 +40,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/rooms", authenticateToken, async (req: any, res) => {
+  app.post("/api/rooms", authenticateToken, checkTrialExpiration, async (req: any, res) => {
     try {
       // Add hotelId from first available hotel if missing (single-property setup)
       let roomData = { ...req.body };

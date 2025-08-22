@@ -104,12 +104,19 @@ export default function Register() {
 
   const registerMutation = useMutation({
     mutationFn: async (data: RegisterFormData) => {
-      return await apiRequest("POST", "/api/auth/register", data);
+      const urlParams = new URLSearchParams(window.location.search);
+      const isTrial = urlParams.get('trial') === 'true';
+      const endpoint = isTrial ? "/api/auth/register-trial" : "/api/auth/register";
+      return await apiRequest("POST", endpoint, data);
     },
     onSuccess: () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const isTrial = urlParams.get('trial') === 'true';
       toast({
         title: "Success",
-        description: "Account created successfully! Please log in.",
+        description: isTrial 
+          ? "Welcome to your 14-day free trial! Please log in to get started." 
+          : "Account created successfully! Please log in.",
       });
       setLocation("/login");
     },
@@ -135,8 +142,16 @@ export default function Register() {
             <Hotel className="h-8 w-8 text-blue-600" />
             <h1 className="text-2xl font-bold text-gray-900">EaseInn</h1>
           </div>
-          <CardTitle className="text-xl">Create Your Account</CardTitle>
-          <p className="text-gray-600">Start managing your hotel operations today</p>
+          <CardTitle className="text-xl">
+            {new URLSearchParams(window.location.search).get('trial') === 'true' 
+              ? 'Start Your 14-Day Free Trial' 
+              : 'Create Your Account'}
+          </CardTitle>
+          <p className="text-gray-600">
+            {new URLSearchParams(window.location.search).get('trial') === 'true'
+              ? '14 days of full access • No credit card required'
+              : 'Start managing your hotel operations today'}
+          </p>
         </CardHeader>
         <CardContent>
           <Form {...form}>
