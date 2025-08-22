@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -32,6 +32,15 @@ const checkInFormSchema = insertGuestSchema.extend({
 type CheckInFormData = z.infer<typeof checkInFormSchema>;
 
 export default function CheckIn() {
+  useEffect(() => {
+    document.title = "Guest Check-In - EaseInn Hotel Management";
+    
+    const metaDescription = document.querySelector('meta[name="description"]');
+    if (metaDescription) {
+      metaDescription.setAttribute('content', 'Process guest check-ins seamlessly with EaseInn. Capture guest details, documents, digital signatures, and assign rooms with automated GST-compliant billing.');
+    }
+  }, []);
+
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 

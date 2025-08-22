@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,15 @@ import { useHotelConfig } from "@/hooks/useHotelConfig";
 import type { Room, InsertRoom } from "@shared/schema";
 
 export default function RoomsPage() {
+  useEffect(() => {
+    document.title = "Room Management - EaseInn Hotel Platform";
+    
+    const metaDescription = document.querySelector('meta[name="description"]');
+    if (metaDescription) {
+      metaDescription.setAttribute('content', 'Manage your hotel rooms efficiently with EaseInn. Add new rooms, edit room details, set pricing, and track room status from available to occupied with real-time updates.');
+    }
+  }, []);
+
   const { toast } = useToast();
   const { hotel, config } = useHotelConfig();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);

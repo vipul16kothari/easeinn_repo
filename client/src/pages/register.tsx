@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -79,6 +79,23 @@ const indianStates = [
 ];
 
 export default function Register() {
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const isTrial = urlParams.get('trial') === 'true';
+    
+    document.title = isTrial 
+      ? "Start Free Trial - EaseInn Hotel Management" 
+      : "Create Account - EaseInn Hotel Management";
+    
+    const metaDescription = document.querySelector('meta[name="description"]');
+    if (metaDescription) {
+      const description = isTrial 
+        ? 'Start your 14-day free trial with EaseInn hotel management platform. No credit card required. Full access to all features including room management, bookings, and payments.'
+        : 'Create your EaseInn hotel management account and start streamlining your property operations with our comprehensive B2B platform.';
+      metaDescription.setAttribute('content', description);
+    }
+  }, []);
+
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);

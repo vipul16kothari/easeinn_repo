@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -24,6 +24,15 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function Login() {
+  useEffect(() => {
+    document.title = "Sign In - EaseInn Hotel Management";
+    
+    const metaDescription = document.querySelector('meta[name="description"]');
+    if (metaDescription) {
+      metaDescription.setAttribute('content', 'Sign in to your EaseInn hotel management account. Access your dashboard, manage rooms, guests, bookings, and payments from anywhere.');
+    }
+  }, []);
+
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
