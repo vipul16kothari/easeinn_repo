@@ -109,13 +109,31 @@ export default function Header() {
                 {user?.role === 'hotelier' ? 'Hotel Manager' : 'Staff'}
               </div>
             </div>
-            <div className="w-8 h-8 bg-primary-500 rounded-full flex items-center justify-center flex-shrink-0" data-testid="user-avatar">
-              <span className="text-white text-sm font-medium">
-                {user?.firstName && user?.lastName 
-                  ? `${user.firstName[0]}${user.lastName[0]}` 
-                  : user?.email?.[0]?.toUpperCase() || 'U'}
-              </span>
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <div className="w-8 h-8 bg-primary-500 rounded-full flex items-center justify-center flex-shrink-0 cursor-pointer hover:bg-primary-600 transition-colors" data-testid="user-avatar">
+                  <span className="text-white text-sm font-medium">
+                    {user?.firstName && user?.lastName 
+                      ? `${user.firstName[0]}${user.lastName[0]}` 
+                      : user?.email?.[0]?.toUpperCase() || 'U'}
+                  </span>
+                </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem asChild>
+                  <Link href="/profile" className="w-full cursor-pointer" data-testid="nav-profile">
+                    Profile Settings
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => window.location.href = '/api/auth/logout'}
+                  className="w-full cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50"
+                  data-testid="nav-signout"
+                >
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
