@@ -11,6 +11,8 @@ import { Separator } from "@/components/ui/separator";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { AddChannelModal } from "@/components/add-channel-modal";
 import { 
   Wifi, 
   Globe, 
@@ -68,37 +70,45 @@ interface SyncLog {
 export default function ChannelManagerPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user, hotel } = useAuth();
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
   const [showAddChannel, setShowAddChannel] = useState(false);
+
+  // Add hotel ID header for API requests
+  const apiOptions = hotel?.id ? { headers: { 'x-hotel-id': hotel.id } } : {};
 
   // Fetch supported channels
   const { data: supportedChannels, isLoading: loadingSupported } = useQuery({
     queryKey: ["/api/channel-manager/supported-channels"],
     retry: false,
+    enabled: !!hotel?.id,
   });
 
   // Fetch connected channels
   const { data: channels = [], isLoading: loadingChannels } = useQuery({
     queryKey: ["/api/channel-manager/channels"],
     retry: false,
+    enabled: !!hotel?.id,
   });
 
   // Fetch sync logs
   const { data: syncLogs = [], isLoading: loadingSyncLogs } = useQuery({
     queryKey: ["/api/channel-manager/sync-logs"],
     retry: false,
+    enabled: !!hotel?.id,
   });
 
   // Fetch analytics
   const { data: analytics, isLoading: loadingAnalytics } = useQuery({
     queryKey: ["/api/channel-manager/analytics"],
     retry: false,
+    enabled: !!hotel?.id,
   });
 
   // Sync all channels mutation
   const syncAllMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", "/api/channel-manager/sync-inventory", {});
+      return apiRequest("POST", "/api/channel-manager/sync-inventory", {}, apiOptions);
     },
     onSuccess: (data) => {
       toast({
@@ -120,7 +130,7 @@ export default function ChannelManagerPage() {
   // Sync specific channel mutation
   const syncChannelMutation = useMutation({
     mutationFn: async (channelId: string) => {
-      return apiRequest("POST", `/api/channel-manager/channels/${channelId}/sync`, {});
+      return apiRequest("POST", `/api/channel-manager/channels/${channelId}/sync`, {}, apiOptions);
     },
     onSuccess: (data) => {
       toast({
@@ -167,6 +177,26 @@ export default function ChannelManagerPage() {
         return <Badge variant="outline">{status}</Badge>;
     }
   };
+
+  // Show loading or authentication prompt
+  if (!hotel?.id) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold mb-2">Authentication Required</h2>
+              <p className="text-gray-600 mb-4">Please log in to access the Channel Manager</p>
+              <Button onClick={() => window.location.href = '/login'}>
+                Go to Login
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loadingSupported || loadingChannels) {
     return (
@@ -538,6 +568,18 @@ export default function ChannelManagerPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Add Channel Modal */}
+        <AddChannelModal
+          isOpen={showAddChannel}
+          onClose={() => setShowAddChannel(false)}
+          supportedChannels={supportedChannels || []}
+          hotelId={hotel?.id}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ["/api/channel-manager/channels"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/channel-manager/analytics"] });
+          }}
+        />
       </div>
     </div>
   );
