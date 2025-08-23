@@ -1,5 +1,13 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChevronDown, MoreHorizontal } from "lucide-react";
 
 export default function Header() {
   const [location] = useLocation();
@@ -18,6 +26,10 @@ export default function Header() {
     { href: "/reports", label: "Reports", id: "reports" },
   ];
 
+  // Split navigation items - first 7 show directly, rest in dropdown
+  const directNavItems = navItems.slice(0, 7);
+  const dropdownNavItems = navItems.slice(7);
+
   const isActive = (href: string) => {
     return location === href || (href === "/dashboard" && location === "/");
   };
@@ -35,12 +47,13 @@ export default function Header() {
                 </h1>
               </Link>
             </div>
-            <nav className="hidden md:ml-8 md:flex md:space-x-6 overflow-hidden">
-              {navItems.map((item) => (
+            <nav className="hidden md:ml-8 md:flex md:items-center md:space-x-4 overflow-hidden">
+              {/* Direct navigation items */}
+              {directNavItems.map((item) => (
                 <Link
                   key={item.id}
                   href={item.href}
-                  className={`px-3 py-2 rounded-md font-medium transition-colors whitespace-nowrap ${
+                  className={`px-3 py-2 rounded-md font-medium transition-colors whitespace-nowrap text-sm ${
                     isActive(item.href)
                       ? "text-primary-600 bg-primary-50"
                       : "text-gray-600 hover:text-primary-600"
@@ -50,6 +63,41 @@ export default function Header() {
                   {item.label}
                 </Link>
               ))}
+              
+              {/* Dropdown for remaining items */}
+              {dropdownNavItems.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className={`px-3 py-2 text-sm font-medium transition-colors ${
+                        dropdownNavItems.some(item => isActive(item.href))
+                          ? "text-primary-600 bg-primary-50"
+                          : "text-gray-600 hover:text-primary-600"
+                      }`}
+                      data-testid="nav-more-dropdown"
+                    >
+                      More
+                      <ChevronDown className="h-4 w-4 ml-1" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-48">
+                    {dropdownNavItems.map((item) => (
+                      <DropdownMenuItem key={item.id} asChild>
+                        <Link
+                          href={item.href}
+                          className={`w-full cursor-pointer ${
+                            isActive(item.href) ? "bg-primary-50 text-primary-600" : ""
+                          }`}
+                          data-testid={`nav-${item.id}`}
+                        >
+                          {item.label}
+                        </Link>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </nav>
           </div>
           <div className="flex items-center space-x-3 relative z-50 min-w-0 flex-shrink">
