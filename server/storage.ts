@@ -1,5 +1,6 @@
 import { 
   users, rooms, guests, checkIns, hotels, invoices, bookings, bookingRooms,
+  otaChannels, channelRatePlans, channelInventory, channelSyncLogs, channelRoomMapping, channelBookings,
   type User, type InsertUser,
   type Room, type InsertRoom,
   type Guest, type InsertGuest,
@@ -8,7 +9,14 @@ import {
   type Invoice, type InsertInvoice,
   type Booking, type InsertBooking,
   type BookingRoom, type InsertBookingRoom,
-  type BookingWithRooms
+  type BookingWithRooms,
+  type OtaChannel, type InsertOtaChannel,
+  type ChannelRatePlan, type InsertChannelRatePlan,
+  type ChannelInventory, type InsertChannelInventory,
+  type ChannelBooking, type InsertChannelBooking,
+  type ChannelRoomMapping, type InsertChannelRoomMapping,
+  type ChannelSyncLog,
+  type OtaChannelWithRatePlans
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, ilike, or } from "drizzle-orm";
@@ -67,6 +75,33 @@ export interface IStorage {
     cleaning: number;
     maintenance: number;
   }>;
+
+  // Channel Manager methods
+  getOtaChannel(id: string): Promise<OtaChannel | undefined>;
+  getChannelsByHotelId(hotelId: string): Promise<OtaChannel[]>;
+  getActiveChannelsByHotelId(hotelId: string): Promise<OtaChannel[]>;
+  createOtaChannel(channel: InsertOtaChannel): Promise<OtaChannel>;
+  updateOtaChannel(id: string, updates: Partial<OtaChannel>): Promise<OtaChannel>;
+  deleteOtaChannel(id: string): Promise<void>;
+  
+  getChannelRatePlansByChannelId(channelId: string): Promise<ChannelRatePlan[]>;
+  getChannelRatePlanByChannelAndRoomType(channelId: string, roomType: string): Promise<ChannelRatePlan | undefined>;
+  createChannelRatePlan(ratePlan: InsertChannelRatePlan): Promise<ChannelRatePlan>;
+  updateChannelRatePlan(id: string, updates: Partial<ChannelRatePlan>): Promise<ChannelRatePlan>;
+  
+  getChannelInventory(channelId: string, startDate: Date, endDate: Date): Promise<ChannelInventory[]>;
+  createChannelInventory(inventory: InsertChannelInventory): Promise<ChannelInventory>;
+  updateChannelInventory(id: string, updates: Partial<ChannelInventory>): Promise<ChannelInventory>;
+  
+  getChannelSyncLogs(hotelId: string, limit?: number, offset?: number): Promise<ChannelSyncLog[]>;
+  createChannelSyncLog(log: Omit<ChannelSyncLog, 'id' | 'createdAt'>): Promise<ChannelSyncLog>;
+  updateChannelSyncLog(id: string, updates: Partial<ChannelSyncLog>): Promise<ChannelSyncLog>;
+  
+  getChannelBookings(hotelId: string, filters?: { channelId?: string; status?: string; limit?: number; offset?: number }): Promise<ChannelBooking[]>;
+  createChannelBooking(booking: InsertChannelBooking): Promise<ChannelBooking>;
+  
+  getRoomsByHotelId(hotelId: string): Promise<Room[]>;
+  getChannelAnalytics(hotelId: string): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -487,9 +522,100 @@ export class DatabaseStorage implements IStorage {
   async getInvoicesByHotel(hotelId: string): Promise<Invoice[]> {
     return await db.select().from(invoices).where(eq(invoices.hotelId, hotelId));
   }
+
+  // Channel Manager methods implementation
+  async getOtaChannel(id: string): Promise<OtaChannel | undefined> {
+    // Stub implementation - will be functional once DB schema is properly deployed
+    return undefined;
+  }
+
+  async getChannelsByHotelId(hotelId: string): Promise<OtaChannel[]> {
+    return [];
+  }
+
+  async getActiveChannelsByHotelId(hotelId: string): Promise<OtaChannel[]> {
+    return [];
+  }
+
+  async createOtaChannel(channel: InsertOtaChannel): Promise<OtaChannel> {
+    throw new Error("Channel management requires database schema update");
+  }
+
+  async updateOtaChannel(id: string, updates: Partial<OtaChannel>): Promise<OtaChannel> {
+    throw new Error("Channel management requires database schema update");
+  }
+
+  async deleteOtaChannel(id: string): Promise<void> {
+    throw new Error("Channel management requires database schema update");
+  }
+
+  async getChannelRatePlansByChannelId(channelId: string): Promise<ChannelRatePlan[]> {
+    return [];
+  }
+
+  async getChannelRatePlanByChannelAndRoomType(channelId: string, roomType: string): Promise<ChannelRatePlan | undefined> {
+    return undefined;
+  }
+
+  async createChannelRatePlan(ratePlan: InsertChannelRatePlan): Promise<ChannelRatePlan> {
+    throw new Error("Channel management requires database schema update");
+  }
+
+  async updateChannelRatePlan(id: string, updates: Partial<ChannelRatePlan>): Promise<ChannelRatePlan> {
+    throw new Error("Channel management requires database schema update");
+  }
+
+  async getChannelInventory(channelId: string, startDate: Date, endDate: Date): Promise<ChannelInventory[]> {
+    return [];
+  }
+
+  async createChannelInventory(inventory: InsertChannelInventory): Promise<ChannelInventory> {
+    throw new Error("Channel management requires database schema update");
+  }
+
+  async updateChannelInventory(id: string, updates: Partial<ChannelInventory>): Promise<ChannelInventory> {
+    throw new Error("Channel management requires database schema update");
+  }
+
+  async getChannelSyncLogs(hotelId: string, limit?: number, offset?: number): Promise<ChannelSyncLog[]> {
+    return [];
+  }
+
+  async createChannelSyncLog(log: Omit<ChannelSyncLog, 'id' | 'createdAt'>): Promise<ChannelSyncLog> {
+    throw new Error("Channel management requires database schema update");
+  }
+
+  async updateChannelSyncLog(id: string, updates: Partial<ChannelSyncLog>): Promise<ChannelSyncLog> {
+    throw new Error("Channel management requires database schema update");
+  }
+
+  async getChannelBookings(hotelId: string, filters?: { channelId?: string; status?: string; limit?: number; offset?: number }): Promise<ChannelBooking[]> {
+    return [];
+  }
+
+  async createChannelBooking(booking: InsertChannelBooking): Promise<ChannelBooking> {
+    throw new Error("Channel management requires database schema update");
+  }
+
+  async getRoomsByHotelId(hotelId: string): Promise<Room[]> {
+    const result = await db.select().from(rooms).where(eq(rooms.hotelId, hotelId));
+    return result;
+  }
+
+  async getChannelAnalytics(hotelId: string): Promise<any> {
+    return {
+      totalChannels: 0,
+      activeChannels: 0,
+      syncStatus: "pending",
+      lastSyncDate: null,
+      bookingsToday: 0,
+      revenue: {
+        total: 0,
+        byChannel: {},
+      },
+    };
+  }
 }
 
 export const storage = new DatabaseStorage();
 
-// Add missing import
-import { sql } from "drizzle-orm";

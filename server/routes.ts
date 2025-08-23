@@ -21,6 +21,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
   setupAuthRoutes(app);
   
+  // Channel Manager routes
+  try {
+    const { setupChannelManagerRoutes } = await import("./channel-manager");
+    setupChannelManagerRoutes(app);
+  } catch (error) {
+    console.log("Channel manager routes not available - will be enabled after schema update");
+  }
+  
   // Room routes (protected)
   app.get("/api/rooms", authenticateToken, checkTrialExpiration, async (req, res) => {
     try {

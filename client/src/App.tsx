@@ -18,6 +18,7 @@ import Bookings from "./pages/bookings";
 import Calendar from "./pages/calendar";
 import MultiRoomBooking from "./pages/multi-room-booking";
 import Payments from "./pages/payments";
+import ChannelManager from "./pages/channel-manager";
 import Terms from "./pages/terms";
 import Privacy from "./pages/privacy";
 import Contact from "./pages/contact";
@@ -98,6 +99,12 @@ function Router() {
         <div className="min-h-screen bg-gray-50">
           <Header />
           <Payments />
+        </div>
+      </Route>
+      <Route path="/channel-manager">
+        <div className="min-h-screen bg-gray-50">
+          <Header />
+          <ChannelManager />
         </div>
       </Route>
       

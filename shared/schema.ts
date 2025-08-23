@@ -9,6 +9,11 @@ export const roomTypeEnum = pgEnum("room_type", ["standard", "deluxe", "suite"])
 export const purposeEnum = pgEnum("purpose", ["business", "leisure", "conference", "wedding", "other"]);
 export const paymentStatusEnum = pgEnum("payment_status", ["pending", "paid", "partial", "refunded"]);
 
+// Channel Manager enums
+export const channelStatusEnum = pgEnum("channel_status", ["active", "inactive", "testing", "error"]);
+export const syncStatusEnum = pgEnum("sync_status", ["pending", "success", "failed", "partial"]);
+export const bookingSourceEnum = pgEnum("booking_source", ["direct", "booking_com", "makemytrip", "agoda", "expedia", "goibibo", "cleartrip", "trivago", "traveloka", "airbnb"]);
+
 // User roles enum
 export const userRoleEnum = pgEnum("user_role", ["admin", "hotelier"]);
 
@@ -338,7 +343,315 @@ export type Booking = typeof bookings.$inferSelect;
 export type InsertBookingRoom = typeof bookingRooms.$inferInsert;
 export type BookingRoom = typeof bookingRooms.$inferSelect;
 
+// Channel Manager Tables
+
+// OTA Channels configuration
+export const otaChannels = pgTable("ota_channels", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  hotelId: varchar("hotel_id").notNull().references(() => hotels.id),
+  channelName: varchar("channel_name", { length: 100 }).notNull(), // booking_com, makemytrip, agoda, etc.
+  displayName: varchar("display_name", { length: 100 }).notNull(), // Booking.com, MakeMyTrip, etc.
+  status: channelStatusEnum("status").default("inactive"),
+  
+  // API Configuration
+  apiEndpoint: varchar("api_endpoint", { length: 500 }),
+  apiKey: text("api_key"), // Encrypted
+  propertyId: varchar("property_id", { length: 100 }), // Hotel ID on the OTA platform
+  
+  // Channel Settings
+  settings: json("settings").$type<{
+    autoSync: boolean;
+    rateParity: boolean; // Maintain same rates across channels
+    inventoryBuffer: number; // Reserve rooms (e.g., keep 2 rooms unavailable)
+    minimumStay: number;
+    maximumStay: number;
+    advanceBookingDays: number;
+    cutoffTime: string; // "18:00" - stop accepting bookings after this time
+    commissionRate: number; // OTA commission percentage
+  }>().default({
+    autoSync: true,
+    rateParity: false,
+    inventoryBuffer: 0,
+    minimumStay: 1,
+    maximumStay: 30,
+    advanceBookingDays: 365,
+    cutoffTime: "18:00",
+    commissionRate: 15
+  }),
+  
+  // Connection Details
+  lastSyncAt: timestamp("last_sync_at"),
+  nextSyncAt: timestamp("next_sync_at"),
+  syncFrequency: integer("sync_frequency").default(30), // minutes
+  
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Channel Rate Plans - different pricing strategies per channel
+export const channelRatePlans = pgTable("channel_rate_plans", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  channelId: varchar("channel_id").notNull().references(() => otaChannels.id, { onDelete: "cascade" }),
+  planName: varchar("plan_name", { length: 100 }).notNull(), // "Standard Rate", "Weekend Special", etc.
+  roomType: roomTypeEnum("room_type").notNull(),
+  
+  // Rate Configuration
+  baseRate: decimal("base_rate", { precision: 10, scale: 2 }).notNull(),
+  weekendSurcharge: decimal("weekend_surcharge", { precision: 10, scale: 2 }).default("0.00"),
+  discountPercentage: decimal("discount_percentage", { precision: 5, scale: 2 }).default("0.00"), // -10% = discount, +10% = markup
+  
+  // Seasonal Rates
+  seasonalRates: json("seasonal_rates").$type<{
+    [dateRange: string]: { // "2024-12-20_2024-12-31"
+      rate: number;
+      description: string;
+    };
+  }>().default({}),
+  
+  // Restrictions
+  minimumStay: integer("minimum_stay").default(1),
+  maximumStay: integer("maximum_stay").default(30),
+  advanceBookingDays: integer("advance_booking_days").default(365),
+  
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Real-time inventory and rates per channel per date
+export const channelInventory = pgTable("channel_inventory", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  channelId: varchar("channel_id").notNull().references(() => otaChannels.id, { onDelete: "cascade" }),
+  ratePlanId: varchar("rate_plan_id").notNull().references(() => channelRatePlans.id, { onDelete: "cascade" }),
+  roomType: roomTypeEnum("room_type").notNull(),
+  date: timestamp("date").notNull(), // Inventory for specific date
+  
+  // Inventory Details
+  totalRooms: integer("total_rooms").notNull(),
+  availableRooms: integer("available_rooms").notNull(),
+  soldRooms: integer("sold_rooms").default(0),
+  
+  // Pricing
+  sellRate: decimal("sell_rate", { precision: 10, scale: 2 }).notNull(), // Final rate sent to OTA
+  
+  // Restrictions for this date
+  closedToArrival: boolean("closed_to_arrival").default(false),
+  closedToDeparture: boolean("closed_to_departure").default(false),
+  minimumStay: integer("minimum_stay").default(1),
+  maximumStay: integer("maximum_stay").default(30),
+  
+  // Sync Status
+  lastSyncedAt: timestamp("last_synced_at"),
+  syncStatus: syncStatusEnum("sync_status").default("pending"),
+  syncErrorMessage: text("sync_error_message"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Channel sync logs for tracking and debugging
+export const channelSyncLogs = pgTable("channel_sync_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  hotelId: varchar("hotel_id").notNull().references(() => hotels.id),
+  channelId: varchar("channel_id").references(() => otaChannels.id),
+  
+  // Sync Details
+  syncType: varchar("sync_type", { length: 50 }).notNull(), // "inventory", "rates", "availability", "booking_import"
+  direction: varchar("direction", { length: 20 }).notNull(), // "push", "pull"
+  status: syncStatusEnum("status").notNull(),
+  
+  // Data
+  requestPayload: json("request_payload"),
+  responseData: json("response_data"),
+  errorMessage: text("error_message"),
+  
+  // Metrics
+  recordsProcessed: integer("records_processed").default(0),
+  recordsSuccessful: integer("records_successful").default(0),
+  recordsFailed: integer("records_failed").default(0),
+  
+  // Timing
+  startedAt: timestamp("started_at").notNull(),
+  completedAt: timestamp("completed_at"),
+  durationMs: integer("duration_ms"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Channel room mapping - map hotel room types to OTA room types  
+export const channelRoomMapping = pgTable("channel_room_mapping", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  channelId: varchar("channel_id").notNull().references(() => otaChannels.id, { onDelete: "cascade" }),
+  hotelRoomType: roomTypeEnum("hotel_room_type").notNull(),
+  channelRoomTypeId: varchar("channel_room_type_id", { length: 100 }).notNull(), // OTA's room type identifier
+  channelRoomTypeName: varchar("channel_room_type_name", { length: 200 }).notNull(), // OTA's room type name
+  
+  // Room details for OTA
+  maxOccupancy: integer("max_occupancy").default(2),
+  roomSize: varchar("room_size", { length: 50 }), // "25 sqm"
+  bedType: varchar("bed_type", { length: 100 }), // "King bed", "Twin beds"
+  amenities: json("amenities").$type<string[]>().default([]), // ["WiFi", "AC", "TV"]
+  
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Enhanced bookings table with channel source
+export const channelBookings = pgTable("channel_bookings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  hotelId: varchar("hotel_id").notNull().references(() => hotels.id),
+  channelId: varchar("channel_id").references(() => otaChannels.id),
+  
+  // Channel booking details
+  channelBookingId: varchar("channel_booking_id", { length: 100 }), // OTA's booking reference
+  source: bookingSourceEnum("source").notNull(),
+  
+  // Guest Information
+  guestName: text("guest_name").notNull(),
+  guestPhone: varchar("guest_phone", { length: 20 }),
+  guestEmail: varchar("guest_email", { length: 255 }),
+  guestNationality: varchar("guest_nationality", { length: 100 }),
+  
+  // Booking Details
+  roomType: roomTypeEnum("room_type").notNull(),
+  numberOfRooms: integer("number_of_rooms").default(1),
+  numberOfAdults: integer("number_of_adults").default(1),
+  numberOfChildren: integer("number_of_children").default(0),
+  
+  // Dates and Rates
+  checkInDate: timestamp("check_in_date").notNull(),
+  checkOutDate: timestamp("check_out_date").notNull(),
+  numberOfNights: integer("number_of_nights").notNull(),
+  roomRate: decimal("room_rate", { precision: 10, scale: 2 }).notNull(),
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
+  
+  // Channel specific details
+  channelCommission: decimal("channel_commission", { precision: 10, scale: 2 }).default("0.00"),
+  netRate: decimal("net_rate", { precision: 10, scale: 2 }), // Amount after commission
+  
+  // Booking Management
+  bookingStatus: varchar("booking_status", { length: 20 }).default("confirmed"), // confirmed, cancelled, no_show, checked_in, checked_out
+  paymentStatus: paymentStatusEnum("payment_status").default("pending"),
+  cancellationPolicy: text("cancellation_policy"),
+  specialRequests: text("special_requests"),
+  
+  // Sync tracking
+  lastSyncedAt: timestamp("last_synced_at"),
+  syncStatus: syncStatusEnum("sync_status").default("success"),
+  
+  // Modifications
+  isModified: boolean("is_modified").default(false),
+  modificationNotes: text("modification_notes"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Relations for Channel Manager
+export const otaChannelsRelations = relations(otaChannels, ({ one, many }) => ({
+  hotel: one(hotels, {
+    fields: [otaChannels.hotelId],
+    references: [hotels.id],
+  }),
+  ratePlans: many(channelRatePlans),
+  inventory: many(channelInventory),
+  roomMappings: many(channelRoomMapping),
+  bookings: many(channelBookings),
+}));
+
+export const channelRatePlansRelations = relations(channelRatePlans, ({ one, many }) => ({
+  channel: one(otaChannels, {
+    fields: [channelRatePlans.channelId],
+    references: [otaChannels.id],
+  }),
+  inventory: many(channelInventory),
+}));
+
+export const channelInventoryRelations = relations(channelInventory, ({ one }) => ({
+  channel: one(otaChannels, {
+    fields: [channelInventory.channelId],
+    references: [otaChannels.id],
+  }),
+  ratePlan: one(channelRatePlans, {
+    fields: [channelInventory.ratePlanId],
+    references: [channelRatePlans.id],
+  }),
+}));
+
+export const channelBookingsRelations = relations(channelBookings, ({ one }) => ({
+  hotel: one(hotels, {
+    fields: [channelBookings.hotelId],
+    references: [hotels.id],
+  }),
+  channel: one(otaChannels, {
+    fields: [channelBookings.channelId],
+    references: [otaChannels.id],
+  }),
+}));
+
+// Insert schemas for Channel Manager
+export const insertOtaChannelSchema = createInsertSchema(otaChannels).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastSyncAt: true,
+  nextSyncAt: true,
+});
+
+export const insertChannelRatePlanSchema = createInsertSchema(channelRatePlans).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertChannelInventorySchema = createInsertSchema(channelInventory).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertChannelBookingSchema = createInsertSchema(channelBookings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastSyncedAt: true,
+}).extend({
+  checkInDate: z.union([z.date(), z.string().transform((str) => new Date(str))]),
+  checkOutDate: z.union([z.date(), z.string().transform((str) => new Date(str))]),
+});
+
+export const insertChannelRoomMappingSchema = createInsertSchema(channelRoomMapping).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Extended types for API responses
 export type BookingWithRooms = Booking & {
   rooms: BookingRoom[];
+};
+
+// Channel Manager Types
+export type InsertOtaChannel = z.infer<typeof insertOtaChannelSchema>;
+export type OtaChannel = typeof otaChannels.$inferSelect;
+export type InsertChannelRatePlan = z.infer<typeof insertChannelRatePlanSchema>;
+export type ChannelRatePlan = typeof channelRatePlans.$inferSelect;
+export type InsertChannelInventory = z.infer<typeof insertChannelInventorySchema>;
+export type ChannelInventory = typeof channelInventory.$inferSelect;
+export type InsertChannelBooking = z.infer<typeof insertChannelBookingSchema>;
+export type ChannelBooking = typeof channelBookings.$inferSelect;
+export type InsertChannelRoomMapping = z.infer<typeof insertChannelRoomMappingSchema>;
+export type ChannelRoomMapping = typeof channelRoomMapping.$inferSelect;
+export type ChannelSyncLog = typeof channelSyncLogs.$inferSelect;
+
+// Extended types with relations
+export type OtaChannelWithRatePlans = OtaChannel & {
+  ratePlans: ChannelRatePlan[];
+  roomMappings: ChannelRoomMapping[];
+};
+
+export type ChannelBookingWithDetails = ChannelBooking & {
+  channel: OtaChannel;
 };
