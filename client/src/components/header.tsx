@@ -126,7 +126,12 @@ export default function Header() {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem 
-                  onClick={() => window.location.href = '/api/auth/logout'}
+                  onClick={() => {
+                    // Clear any client-side auth state and redirect to login
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    window.location.href = '/login';
+                  }}
                   className="w-full cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50"
                   data-testid="nav-signout"
                 >
