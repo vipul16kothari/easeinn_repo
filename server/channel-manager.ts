@@ -88,9 +88,11 @@ export class ChannelSyncService {
   // Real Booking.com API integration
   private static async callBookingComAPI(channel: any, payload: any): Promise<any> {
     try {
+      // Handle both testing (with apiCredentials object) and stored channel data
+      const apiCredentials = channel.apiCredentials || {};
       const credentials: BookingComCredentials = {
-        username: channel.apiCredentials.username,
-        password: channel.apiCredentials.password,
+        username: apiCredentials.username || '',
+        password: apiCredentials.password || '',
         propertyId: channel.propertyId,
       };
 
@@ -160,12 +162,25 @@ export class ChannelSyncService {
   // Test channel connection
   static async testChannelConnection(channelData: any): Promise<{ success: boolean; message: string }> {
     try {
+      console.log('Testing channel connection for:', channelData.channelName);
+      
       if (channelData.channelName === 'booking_com') {
+        // Handle different possible data structures
+        const apiCredentials = channelData.apiCredentials || {};
+        
         const credentials: BookingComCredentials = {
-          username: channelData.apiCredentials.username,
-          password: channelData.apiCredentials.password,
-          propertyId: channelData.propertyId,
+          username: apiCredentials.username || '',
+          password: apiCredentials.password || '',
+          propertyId: channelData.propertyId || '',
         };
+        
+        // Validate that all required credentials are present
+        if (!credentials.username || !credentials.password || !credentials.propertyId) {
+          return {
+            success: false,
+            message: `Missing required credentials: ${!credentials.username ? 'username ' : ''}${!credentials.password ? 'password ' : ''}${!credentials.propertyId ? 'property ID' : ''}`
+          };
+        }
 
         const bookingAPI = createBookingComAPI(credentials);
         const result = await bookingAPI.testConnection();
@@ -305,7 +320,10 @@ export function setupChannelManagerRoutes(app: Express) {
         return res.status(400).json({ message: "Hotel ID required" });
       }
 
-      const channelData = insertOtaChannelSchema.parse({ ...req.body, hotelId });
+      console.log('Received channel data:', JSON.stringify(req.body, null, 2));
+      
+      // Parse the channel data but be flexible with the structure
+      const channelData = { ...req.body, hotelId };
       
       // Test connection before creating channel
       if (channelData.channelName === 'booking_com') {
@@ -318,7 +336,20 @@ export function setupChannelManagerRoutes(app: Express) {
         }
       }
       
-      const channel = await storage.createOtaChannel(channelData);
+      // Convert frontend data structure to match database schema
+      const dbChannelData = {
+        hotelId,
+        channelName: channelData.channelName,
+        displayName: channelData.displayName,
+        propertyId: channelData.propertyId,
+        apiEndpoint: channelData.apiEndpoint,
+        apiKey: channelData.apiCredentials?.apiKey || '',  // Map to existing field for now
+        settings: channelData.settings || {},
+        status: channelData.status || "testing",
+        description: channelData.description || '',
+      };
+      
+      const channel = await storage.createOtaChannel(dbChannelData);
       
       res.status(201).json(channel);
     } catch (error) {
