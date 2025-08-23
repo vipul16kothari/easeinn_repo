@@ -82,6 +82,7 @@ export default function ChannelManagerPage() {
     queryKey: ["/api/channel-manager/supported-channels"],
     retry: false,
     enabled: !!hotel?.id,
+    meta: { headers: { 'x-hotel-id': hotel?.id } },
   });
 
   // Fetch connected channels
@@ -89,6 +90,7 @@ export default function ChannelManagerPage() {
     queryKey: ["/api/channel-manager/channels"],
     retry: false,
     enabled: !!hotel?.id,
+    meta: { headers: { 'x-hotel-id': hotel?.id } },
   });
 
   // Fetch sync logs
@@ -96,6 +98,7 @@ export default function ChannelManagerPage() {
     queryKey: ["/api/channel-manager/sync-logs"],
     retry: false,
     enabled: !!hotel?.id,
+    meta: { headers: { 'x-hotel-id': hotel?.id } },
   });
 
   // Fetch analytics
@@ -103,6 +106,7 @@ export default function ChannelManagerPage() {
     queryKey: ["/api/channel-manager/analytics"],
     retry: false,
     enabled: !!hotel?.id,
+    meta: { headers: { 'x-hotel-id': hotel?.id } },
   });
 
   // Sync all channels mutation

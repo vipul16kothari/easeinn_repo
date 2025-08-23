@@ -3,11 +3,12 @@ import { storage } from "./storage";
 import { authenticateToken, requireHotelOwner, checkTrialExpiration } from "./auth";
 import { z } from "zod";
 import { insertOtaChannelSchema, insertChannelRatePlanSchema, insertChannelInventorySchema, insertChannelRoomMappingSchema } from "@shared/schema";
+import { createBookingComAPI, type BookingComCredentials } from "./services/booking-com-api";
 
 // Channel sync service class
 export class ChannelSyncService {
   private static supportedChannels = [
-    { id: "booking_com", name: "Booking.com", endpoint: "https://distribution-xml.booking.com", commission: 15 },
+    { id: "booking_com", name: "Booking.com", endpoint: "https://supply-xml.booking.com", commission: 15 },
     { id: "makemytrip", name: "MakeMyTrip", endpoint: "https://partners.makemytrip.com/api", commission: 18 },
     { id: "agoda", name: "Agoda", endpoint: "https://affiliates.agoda.com/xmlapi", commission: 16 },
     { id: "expedia", name: "Expedia", endpoint: "https://www.expediaconnectivity.com/eqc", commission: 15 },
@@ -40,8 +41,8 @@ export class ChannelSyncService {
         requestPayload: inventoryData,
       });
 
-      // Simulate API call to OTA (replace with actual API integration)
-      const response = await this.mockOtaApiCall(channel.apiEndpoint, {
+      // Make real API call to OTA (now includes Booking.com integration)
+      const response = await this.makeOtaApiCall(channel, {
         type: "inventory_update",
         propertyId: channel.propertyId,
         data: inventoryData,
@@ -65,7 +66,73 @@ export class ChannelSyncService {
     }
   }
 
-  // Mock OTA API call (replace with real integrations)
+  // Real OTA API call - now uses actual Booking.com API for booking_com channels
+  private static async makeOtaApiCall(channel: any, payload: any): Promise<any> {
+    try {
+      // Handle Booking.com integration with real API
+      if (channel.channelName === 'booking_com') {
+        return await this.callBookingComAPI(channel, payload);
+      }
+      
+      // For other channels, fall back to mock for now
+      return await this.mockOtaApiCall(channel.apiEndpoint, payload);
+    } catch (error) {
+      console.error(`API call failed for ${channel.channelName}:`, error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown API error'
+      };
+    }
+  }
+
+  // Real Booking.com API integration
+  private static async callBookingComAPI(channel: any, payload: any): Promise<any> {
+    try {
+      const credentials: BookingComCredentials = {
+        username: channel.apiCredentials.username,
+        password: channel.apiCredentials.password,
+        propertyId: channel.propertyId,
+      };
+
+      const bookingAPI = createBookingComAPI(credentials);
+
+      if (payload.type === 'connection_test') {
+        return await bookingAPI.testConnection();
+      } else if (payload.type === 'inventory_update') {
+        // Convert our internal format to Booking.com format
+        const roomRates = payload.data.map((item: any) => ({
+          roomTypeId: item.roomTypeId,
+          ratePlanId: item.ratePlanId || 'default',
+          date: item.date,
+          rate: item.rate,
+          availability: item.availability,
+          minStay: item.minStay,
+          maxStay: item.maxStay,
+          closedToArrival: item.closedToArrival || false,
+          closedToDeparture: item.closedToDeparture || false,
+        }));
+
+        return await bookingAPI.updateRatesAndAvailability(roomRates);
+      } else if (payload.type === 'fetch_reservations') {
+        const result = await bookingAPI.fetchReservations(payload.startDate, payload.endDate);
+        return {
+          success: result.success,
+          data: result.reservations,
+          message: result.message
+        };
+      }
+
+      return { success: false, error: 'Unknown payload type' };
+    } catch (error) {
+      console.error('Booking.com API call failed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Booking.com API error'
+      };
+    }
+  }
+
+  // Mock OTA API call (for non-Booking.com channels)
   private static async mockOtaApiCall(endpoint: string, payload: any): Promise<any> {
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -86,6 +153,33 @@ export class ChannelSyncService {
         error: "OTA API temporarily unavailable",
         errorCode: "TEMP_UNAVAILABLE",
         retryAfter: 300, // 5 minutes
+      };
+    }
+  }
+
+  // Test channel connection
+  static async testChannelConnection(channelData: any): Promise<{ success: boolean; message: string }> {
+    try {
+      if (channelData.channelName === 'booking_com') {
+        const credentials: BookingComCredentials = {
+          username: channelData.apiCredentials.username,
+          password: channelData.apiCredentials.password,
+          propertyId: channelData.propertyId,
+        };
+
+        const bookingAPI = createBookingComAPI(credentials);
+        const result = await bookingAPI.testConnection();
+        
+        return result;
+      }
+      
+      // For other channels, return success for now
+      return { success: true, message: 'Connection test not implemented for this channel' };
+    } catch (error) {
+      console.error('Channel connection test failed:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Connection test failed'
       };
     }
   }
@@ -212,6 +306,18 @@ export function setupChannelManagerRoutes(app: Express) {
       }
 
       const channelData = insertOtaChannelSchema.parse({ ...req.body, hotelId });
+      
+      // Test connection before creating channel
+      if (channelData.channelName === 'booking_com') {
+        const testResult = await ChannelSyncService.testChannelConnection(channelData);
+        if (!testResult.success) {
+          return res.status(400).json({ 
+            message: "Connection test failed", 
+            error: testResult.message 
+          });
+        }
+      }
+      
       const channel = await storage.createOtaChannel(channelData);
       
       res.status(201).json(channel);
