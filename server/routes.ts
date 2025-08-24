@@ -305,7 +305,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         guestName,
         guestPhone,
         guestEmail: guestEmail || null,
-        roomType: "deluxe", // Default value to satisfy NOT NULL constraint, actual room types in booking_rooms table
+        roomType: "deluxe" as const, // Default value to satisfy NOT NULL constraint, actual room types in booking_rooms table
         numberOfRooms: rooms.length,
         checkInDate: new Date(checkInDate),
         checkOutDate: new Date(checkOutDate),
@@ -418,7 +418,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const currentMonth = new Date().getMonth();
       const currentYear = new Date().getFullYear();
       const monthlyRevenue = bookings.filter(booking => {
-        const bookingDate = new Date(booking.createdAt);
+        const bookingDate = booking.createdAt ? new Date(booking.createdAt) : new Date();
         return bookingDate.getMonth() === currentMonth && bookingDate.getFullYear() === currentYear;
       }).reduce((sum, booking) => {
         return sum + parseFloat(booking.totalAmount || "0");
@@ -426,7 +426,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Calculate yearly revenue (current year)
       const yearlyRevenue = bookings.filter(booking => {
-        const bookingDate = new Date(booking.createdAt);
+        const bookingDate = booking.createdAt ? new Date(booking.createdAt) : new Date();
         return bookingDate.getFullYear() === currentYear;
       }).reduce((sum, booking) => {
         return sum + parseFloat(booking.totalAmount || "0");
@@ -628,7 +628,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update hotel configuration
-  app.patch("/api/admin/hotels/:id", authenticateToken, requireRole(["admin"]), async (req, res) => {
+  app.patch("/api/admin/hotels/:id", authenticateToken, requireRole(["admin"]), async (req: any, res) => {
     try {
       const hotelId = req.params.id;
       const updates = req.body;
@@ -721,7 +721,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get specific hotel by ID (for configuration access)
-  app.get("/api/hotels/:id", authenticateToken, async (req, res) => {
+  app.get("/api/hotels/:id", authenticateToken, async (req: any, res) => {
     try {
       const hotelId = req.params.id;
       const hotel = await storage.getHotel(hotelId);
