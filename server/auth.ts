@@ -216,10 +216,13 @@ export function setupAuthRoutes(app: Express) {
       // Set HTTP-only cookie
       res.cookie("authToken", token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
+        secure: false, // Always false for development  
+        sameSite: "lax", // Changed from strict to lax for better compatibility
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        path: "/", // Explicitly set path
       });
+      
+      console.log("JWT token set as cookie for user:", user.email);
       
       // Get user's hotel(s) if hotelier
       let hotels: any[] = [];
@@ -312,13 +315,20 @@ export function setupAuthRoutes(app: Express) {
 export function authenticateToken(req: any, res: Response, next: NextFunction) {
   const token = req.cookies?.authToken;
   
+  // Debug logging
+  console.log("Auth middleware - path:", req.path);
+  console.log("Auth middleware - cookies:", Object.keys(req.cookies || {}));
+  console.log("Auth middleware - authToken exists:", !!token);
+  
   if (!token) {
+    console.log("No auth token found in cookies");
     return res.status(401).json({ message: "Access token required" });
   }
   
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as any;
     req.user = decoded;
+    console.log("Token verified successfully for user:", decoded.email);
     next();
   } catch (error) {
     console.error("Token verification error:", error);
