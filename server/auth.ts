@@ -216,10 +216,10 @@ export function setupAuthRoutes(app: Express) {
       // Set HTTP-only cookie
       res.cookie("authToken", token, {
         httpOnly: true,
-        secure: false, // Always false for development  
-        sameSite: "lax", // Changed from strict to lax for better compatibility
+        secure: false,
+        sameSite: "none", // Allow cross-site requests
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        path: "/", // Explicitly set path
+        path: "/",
       });
       
       console.log("JWT token set as cookie for user:", user.email);

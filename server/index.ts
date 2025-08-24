@@ -2,11 +2,19 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import dotenv from "dotenv";
+import cors from "cors";
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
+
+// CORS configuration for cookie support
+app.use(cors({
+  origin: true, // Allow all origins in development
+  credentials: true, // Allow cookies to be sent
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
