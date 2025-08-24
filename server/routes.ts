@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import cookieParser from "cookie-parser";
 import { storage } from "./storage";
-import { setupAuthRoutes, authenticateToken, requireRole, checkTrialExpiration } from "./auth";
+import { setupAuthRoutes, authenticateToken, requireRole, checkTrialExpiration, requireActiveHotel } from "./auth";
 import bcrypt from "bcryptjs";
 import { insertGuestSchema, insertCheckInSchema, insertRoomSchema, insertBookingSchema } from "@shared/schema";
 import { z } from "zod";
@@ -33,7 +33,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
   
   // Room routes (protected)
-  app.get("/api/rooms", authenticateToken, checkTrialExpiration, async (req, res) => {
+  app.get("/api/rooms", authenticateToken, requireActiveHotel(storage), checkTrialExpiration, async (req, res) => {
     try {
       const rooms = await storage.getRooms();
       res.json(rooms);
@@ -42,7 +42,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/rooms/available", authenticateToken, checkTrialExpiration, async (req, res) => {
+  app.get("/api/rooms/available", authenticateToken, requireActiveHotel(storage), checkTrialExpiration, async (req, res) => {
     try {
       const rooms = await storage.getAvailableRooms();
       res.json(rooms);
@@ -463,6 +463,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Admin hotels error:", error);
       res.status(500).json({ message: "Failed to fetch hotels" });
+    }
+  });
+
+  // Toggle hotel active status
+  app.patch("/api/admin/hotels/:hotelId/toggle-active", authenticateToken, requireRole(["admin"]), async (req, res) => {
+    try {
+      const { hotelId } = req.params;
+      const updatedHotel = await storage.toggleHotelActive(hotelId);
+      
+      // Log the action for audit purposes
+      console.log(`Hotel ${hotelId} (${updatedHotel.name}) ${updatedHotel.isActive ? 'activated' : 'deactivated'} by admin`);
+      
+      res.json({
+        message: `Hotel ${updatedHotel.isActive ? 'activated' : 'deactivated'} successfully`,
+        hotel: updatedHotel
+      });
+    } catch (error) {
+      console.error("Toggle hotel active error:", error);
+      res.status(500).json({ message: "Failed to toggle hotel status" });
     }
   });
 

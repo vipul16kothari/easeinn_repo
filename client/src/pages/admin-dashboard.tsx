@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, Users, Building2, DollarSign, BookOpen, UserCheck, Clock, Bed, Plus, Settings, CreditCard, Mail, UserPlus, LogOut } from "lucide-react";
+import { Calendar, Users, Building2, DollarSign, BookOpen, UserCheck, Clock, Bed, Plus, Settings, CreditCard, Mail, UserPlus, LogOut, XCircle, CheckCircle } from "lucide-react";
 import { X, Save } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
@@ -338,6 +338,32 @@ export default function AdminDashboard() {
       });
     },
   });
+
+  // Hotel activation/deactivation mutation
+  const toggleActiveMutation = useMutation({
+    mutationFn: async (hotelId: string) => {
+      return await apiRequest("PATCH", `/api/admin/hotels/${hotelId}/toggle-active`, {});
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Success",
+        description: data.message || "Hotel status updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/hotels"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error", 
+        description: error.message || "Failed to update hotel status",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const toggleHotelActive = (hotelId: string) => {
+    toggleActiveMutation.mutate(hotelId);
+  };
 
   if (isLoading) {
     return (
@@ -807,6 +833,24 @@ export default function AdminDashboard() {
                       >
                         <CreditCard className="h-4 w-4 mr-1" />
                         Billing
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant={hotel.isActive ? "destructive" : "default"}
+                        onClick={() => toggleHotelActive(hotel.id)}
+                        disabled={toggleActiveMutation.isPending}
+                      >
+                        {hotel.isActive ? (
+                          <>
+                            <XCircle className="h-4 w-4 mr-1" />
+                            Deactivate
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Activate
+                          </>
+                        )}
                       </Button>
                     </div>
                   </div>

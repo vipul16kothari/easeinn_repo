@@ -27,6 +27,22 @@ export const platformSettings = pgTable("platform_settings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Payment transactions table for tracking hotel onboarding payments
+export const paymentTransactions = pgTable("payment_transactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  hotelId: varchar("hotel_id").references(() => hotels.id),
+  razorpayPaymentId: varchar("razorpay_payment_id", { length: 100 }),
+  razorpayOrderId: varchar("razorpay_order_id", { length: 100 }),
+  razorpaySignature: varchar("razorpay_signature", { length: 500 }),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 10 }).default("INR"),
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, success, failed
+  paymentType: varchar("payment_type", { length: 50 }).notNull(), // onboarding_fee, subscription_fee, booking_payment
+  planType: varchar("plan_type", { length: 50 }), // hotelier, enterprise
+  transactionDate: timestamp("transaction_date").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email", { length: 255 }).unique().notNull(),
@@ -352,6 +368,8 @@ export type InsertBooking = typeof bookings.$inferInsert;
 export type Booking = typeof bookings.$inferSelect;
 export type InsertBookingRoom = typeof bookingRooms.$inferInsert;
 export type BookingRoom = typeof bookingRooms.$inferSelect;
+export type PaymentTransaction = typeof paymentTransactions.$inferSelect;
+export type InsertPaymentTransaction = typeof paymentTransactions.$inferInsert;
 
 // Channel Manager Tables
 

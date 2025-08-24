@@ -326,6 +326,49 @@ export function authenticateToken(req: any, res: Response, next: NextFunction) {
   }
 }
 
+// Middleware to check if hotel is active for hotelier users
+export function requireActiveHotel(storage: any) {
+  return async (req: any, res: Response, next: NextFunction) => {
+    try {
+      // Skip check for admin users
+      if (req.user?.role === "admin") {
+        return next();
+      }
+
+      // For hoteliers, check if their hotel is active
+      if (req.user?.role === "hotelier") {
+        const hotel = await storage.getHotelByOwnerId(req.user.id);
+        
+        if (!hotel) {
+          console.log(`No hotel found for hotelier user ID: ${req.user.id}`);
+          res.clearCookie("authToken");
+          return res.status(403).json({ 
+            message: "Hotel not found", 
+            logout: true 
+          });
+        }
+
+        if (!hotel.isActive) {
+          console.log(`Hotel ${hotel.name} (ID: ${hotel.id}) is deactivated. Logging out user ${req.user.id}`);
+          res.clearCookie("authToken");
+          return res.status(403).json({ 
+            message: "Hotel account has been deactivated", 
+            logout: true 
+          });
+        }
+
+        // Store hotel info in request for use in other middleware/routes
+        req.hotel = hotel;
+      }
+
+      next();
+    } catch (error) {
+      console.error("Hotel active check error:", error);
+      res.status(500).json({ message: "Failed to verify hotel status" });
+    }
+  };
+}
+
 // Role-based authorization middleware
 export function requireRole(roles: string[]) {
   return (req: any, res: Response, next: NextFunction) => {

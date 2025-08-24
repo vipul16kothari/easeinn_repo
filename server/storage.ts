@@ -33,6 +33,8 @@ export interface IStorage {
   getHotelsByOwnerId(ownerId: string): Promise<Hotel[]>;
   createHotel(hotel: InsertHotel): Promise<Hotel>;
   updateHotel(id: string, updates: Partial<Hotel>): Promise<Hotel>;
+  toggleHotelActive(hotelId: string): Promise<Hotel>;
+  getHotelByOwnerId(ownerId: string): Promise<Hotel | undefined>;
   
   // Room methods
   getRooms(hotelId?: string): Promise<Room[]>;
@@ -152,6 +154,28 @@ export class DatabaseStorage implements IStorage {
       .where(eq(hotels.id, id))
       .returning();
     return updatedHotel;
+  }
+
+  async toggleHotelActive(hotelId: string): Promise<Hotel> {
+    // Get current hotel state
+    const hotel = await this.getHotel(hotelId);
+    if (!hotel) {
+      throw new Error("Hotel not found");
+    }
+    
+    // Toggle the isActive state
+    const [updatedHotel] = await db
+      .update(hotels)
+      .set({ isActive: !hotel.isActive })
+      .where(eq(hotels.id, hotelId))
+      .returning();
+    
+    return updatedHotel;
+  }
+
+  async getHotelByOwnerId(ownerId: string): Promise<Hotel | undefined> {
+    const [hotel] = await db.select().from(hotels).where(eq(hotels.ownerId, ownerId));
+    return hotel || undefined;
   }
 
   async getRooms(hotelId?: string): Promise<Room[]> {
