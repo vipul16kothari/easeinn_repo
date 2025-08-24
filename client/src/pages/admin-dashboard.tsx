@@ -13,6 +13,7 @@ import { Calendar, Users, Building2, DollarSign, BookOpen, UserCheck, Clock, Bed
 import { X, Save } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
+import * as React from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
 // Pricing Configuration Component
@@ -48,7 +49,7 @@ function PricingConfigForm() {
   });
 
   // Update local state when data loads
-  useState(() => {
+  React.useEffect(() => {
     if (pricingConfig) {
       setHotelierPrice(pricingConfig.hotelierPrice || 2999);
       setEnterprisePrice(pricingConfig.enterprisePrice || 9999);
@@ -871,35 +872,11 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>Platform Settings</CardTitle>
-                <CardDescription>System configuration and global settings</CardDescription>
+                <CardTitle>Subscription Pricing Configuration</CardTitle>
+                <CardDescription>Configure plan pricing displayed on the landing page</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Super Admin Email</Label>
-                  <Input value={authData?.user?.email || ""} disabled />
-                  <p className="text-xs text-gray-500">This is your super admin account</p>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>Default Subscription Plan</Label>
-                  <Select defaultValue="basic">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="basic">Basic - ₹5,000/month</SelectItem>
-                      <SelectItem value="standard">Standard - ₹10,000/month</SelectItem>
-                      <SelectItem value="premium">Premium - ₹20,000/month</SelectItem>
-                      <SelectItem value="enterprise">Enterprise - ₹50,000/month</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <Button className="w-full">
-                  <Settings className="h-4 w-4 mr-2" />
-                  Update Platform Settings
-                </Button>
+                <PricingConfigForm />
               </CardContent>
             </Card>
 
