@@ -30,6 +30,12 @@ export default function Payments() {
   const { toast } = useToast();
   const [razorpayKey, setRazorpayKey] = useState("");
 
+  // Fetch dynamic pricing configuration
+  const { data: pricingConfig } = useQuery({
+    queryKey: ["/api/admin/pricing-config"],
+    retry: false,
+  }) as { data: { hotelierPrice: number; enterprisePrice: number } | undefined };
+
   // Fetch Razorpay configuration
   useEffect(() => {
     const fetchConfig = async () => {
@@ -198,7 +204,7 @@ export default function Payments() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-purple-600 mb-4">
-              ₹2,999/month
+              ₹{(pricingConfig?.hotelierPrice || 2999).toLocaleString()}/month
             </div>
             <ul className="space-y-2 text-sm text-gray-600 mb-6">
               <li>• Up to 25 rooms</li>
@@ -207,7 +213,7 @@ export default function Payments() {
               <li>• GST compliant invoicing</li>
             </ul>
             <Button
-              onClick={() => subscriptionMutation.mutate({ amount: 2999, planName: "Basic Plan" })}
+              onClick={() => subscriptionMutation.mutate({ amount: pricingConfig?.hotelierPrice || 2999, planName: "Hotelier Plan" })}
               disabled={subscriptionMutation.isPending}
               className="w-full"
             >
@@ -229,7 +235,7 @@ export default function Payments() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-blue-600 mb-4">
-              ₹5,999/month
+              ₹{(pricingConfig?.enterprisePrice || 9999).toLocaleString()}/month
             </div>
             <ul className="space-y-2 text-sm text-gray-600 mb-6">
               <li>• Up to 100 rooms</li>
@@ -239,7 +245,7 @@ export default function Payments() {
               <li>• Custom integrations</li>
             </ul>
             <Button
-              onClick={() => subscriptionMutation.mutate({ amount: 5999, planName: "Professional Plan" })}
+              onClick={() => subscriptionMutation.mutate({ amount: pricingConfig?.enterprisePrice || 9999, planName: "Enterprise Plan" })}
               disabled={subscriptionMutation.isPending}
               className="w-full"
             >
@@ -258,7 +264,7 @@ export default function Payments() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-yellow-600 mb-4">
-              ₹12,999/month
+              ₹{(pricingConfig?.enterprisePrice || 9999).toLocaleString()}/month
             </div>
             <ul className="space-y-2 text-sm text-gray-600 mb-6">
               <li>• Unlimited rooms</li>
@@ -268,7 +274,7 @@ export default function Payments() {
               <li>• Dedicated account manager</li>
             </ul>
             <Button
-              onClick={() => subscriptionMutation.mutate({ amount: 12999, planName: "Enterprise Plan" })}
+              onClick={() => subscriptionMutation.mutate({ amount: pricingConfig?.enterprisePrice || 9999, planName: "Enterprise Plan" })}
               disabled={subscriptionMutation.isPending}
               className="w-full"
             >

@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
 import { ArrowLeft, CreditCard, Building, User, Mail, Phone, MapPin, CheckCircle, Sparkles } from "lucide-react";
@@ -20,11 +20,12 @@ interface Plan {
   popular?: boolean;
 }
 
-const plans: Plan[] = [
+// Dynamic pricing function
+const createPlans = (hotelierPrice: number, enterprisePrice: number): Plan[] => [
   {
     id: "hotelier",
     name: "Hotelier Plan",
-    price: 2999,
+    price: hotelierPrice,
     maxRooms: 50,
     features: [
       "Up to 50 rooms",
@@ -37,7 +38,7 @@ const plans: Plan[] = [
   {
     id: "enterprise", 
     name: "Enterprise Plan",
-    price: 9999,
+    price: enterprisePrice,
     maxRooms: 999,
     popular: true,
     features: [
@@ -63,6 +64,18 @@ export default function SignupWithPayment() {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [razorpayKey, setRazorpayKey] = useState("");
+
+  // Fetch dynamic pricing configuration
+  const { data: pricingConfig, isLoading: isPricingLoading } = useQuery({
+    queryKey: ["/api/admin/pricing-config"],
+    retry: false,
+  }) as { data: { hotelierPrice: number; enterprisePrice: number } | undefined; isLoading: boolean };
+
+  // Create plans with dynamic pricing
+  const plans = createPlans(
+    pricingConfig?.hotelierPrice || 2999,
+    pricingConfig?.enterprisePrice || 9999
+  );
   const [formData, setFormData] = useState({
     // Hotel details
     hotelName: "",
@@ -86,9 +99,11 @@ export default function SignupWithPayment() {
     
     const metaDescription = document.querySelector('meta[name="description"]');
     if (metaDescription) {
-      metaDescription.setAttribute('content', 'Start your hotel management journey with EaseInn. Choose from Hotelier Plan (₹2,999) or Enterprise Plan (₹9,999) with secure Razorpay payment processing. Get started in minutes with our comprehensive hotel PMS.');
+      const hotelierPrice = pricingConfig?.hotelierPrice || 2999;
+      const enterprisePrice = pricingConfig?.enterprisePrice || 9999;
+      metaDescription.setAttribute('content', `Start your hotel management journey with EaseInn. Choose from Hotelier Plan (₹${hotelierPrice.toLocaleString()}) or Enterprise Plan (₹${enterprisePrice.toLocaleString()}) with secure Razorpay payment processing. Get started in minutes with our comprehensive hotel PMS.`);
     }
-  }, []);
+  }, [pricingConfig]);
 
   // Get plan from URL params
   useEffect(() => {
