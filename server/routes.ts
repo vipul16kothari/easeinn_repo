@@ -6,6 +6,9 @@ import { setupAuthRoutes, authenticateToken, requireRole, checkTrialExpiration }
 import bcrypt from "bcryptjs";
 import { insertGuestSchema, insertCheckInSchema, insertRoomSchema, insertBookingSchema } from "@shared/schema";
 import { z } from "zod";
+import { platformSettings } from "@shared/schema";
+import { eq } from "drizzle-orm";
+import { db } from "./db";
 import { 
   createSubscriptionOrder, 
   createBookingOrder, 
@@ -460,6 +463,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Admin hotels error:", error);
       res.status(500).json({ message: "Failed to fetch hotels" });
+    }
+  });
+
+  // Admin pricing configuration routes
+  app.get("/api/admin/pricing-config", async (req, res) => {
+    try {
+      const hotelierPrice = await db
+        .select({ value: platformSettings.value })
+        .from(platformSettings)
+        .where(eq(platformSettings.key, "hotelier_price"))
+        .limit(1);
+      
+      const enterprisePrice = await db
+        .select({ value: platformSettings.value })
+        .from(platformSettings)
+        .where(eq(platformSettings.key, "enterprise_price"))
+        .limit(1);
+      
+      res.json({
+        hotelierPrice: hotelierPrice[0]?.value ? parseInt(hotelierPrice[0].value) : 2999,
+        enterprisePrice: enterprisePrice[0]?.value ? parseInt(enterprisePrice[0].value) : 9999
+      });
+    } catch (error) {
+      console.error("Error fetching pricing config:", error);
+      res.status(500).json({ message: "Failed to fetch pricing configuration" });
+    }
+  });
+
+  app.put("/api/admin/pricing-config", authenticateToken, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const { hotelierPrice, enterprisePrice } = req.body;
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        return res.status(401).json({ message: "User ID required" });
+      }
+
+      if (!hotelierPrice || !enterprisePrice || hotelierPrice <= 0 || enterprisePrice <= 0) {
+        return res.status(400).json({ message: "Valid pricing values required" });
+      }
+
+      // Update hotelier price
+      await db
+        .insert(platformSettings)
+        .values({
+          key: "hotelier_price",
+          value: hotelierPrice.toString(),
+          description: "Monthly subscription price for Hotelier Plan",
+          updatedBy: userId,
+        })
+        .onConflictDoUpdate({
+          target: platformSettings.key,
+          set: {
+            value: hotelierPrice.toString(),
+            updatedBy: userId,
+            updatedAt: new Date(),
+          },
+        });
+
+      // Update enterprise price
+      await db
+        .insert(platformSettings)
+        .values({
+          key: "enterprise_price",
+          value: enterprisePrice.toString(),
+          description: "Monthly subscription price for Enterprise Plan",
+          updatedBy: userId,
+        })
+        .onConflictDoUpdate({
+          target: platformSettings.key,
+          set: {
+            value: enterprisePrice.toString(),
+            updatedBy: userId,
+            updatedAt: new Date(),
+          },
+        });
+
+      res.json({ message: "Pricing configuration updated successfully" });
+    } catch (error) {
+      console.error("Error updating pricing config:", error);
+      res.status(500).json({ message: "Failed to update pricing configuration" });
     }
   });
 

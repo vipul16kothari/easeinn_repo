@@ -1,11 +1,24 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Hotel, Users, Receipt, BarChart3, Shield, Clock, Star, ArrowRight, CheckCircle, Sparkles, Zap, Globe, Calendar } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Hotel, Users, Receipt, BarChart3, Shield, Clock, Star, ArrowRight, CheckCircle, Sparkles, Zap, Globe, Calendar, Play, X } from "lucide-react";
 
 export default function Landing() {
+  const [isDemoOpen, setIsDemoOpen] = useState(false);
+
+  // Fetch current pricing from admin settings
+  const { data: pricingConfig } = useQuery({
+    queryKey: ["/api/admin/pricing-config"],
+    retry: false,
+  });
+
+  const hotelierPrice = pricingConfig?.hotelierPrice || 2999;
+  const enterprisePrice = pricingConfig?.enterprisePrice || 9999;
+
   useEffect(() => {
     document.title = "EaseInn - Comprehensive Hotel Management Platform | Multi-Property PMS";
     
@@ -96,10 +109,32 @@ export default function Landing() {
                   Start Free Trial
                 </Button>
               </Link>
-              <Button variant="outline" size="lg" className="px-8 py-4 text-lg border-gray-300 hover:border-blue-300 hover:bg-blue-50 transition-all duration-300" data-testid="button-view-demo">
-                <Globe className="mr-2 h-5 w-5" />
-                Watch Demo
-              </Button>
+              <Dialog open={isDemoOpen} onOpenChange={setIsDemoOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="lg" className="px-8 py-4 text-lg border-gray-300 hover:border-blue-300 hover:bg-blue-50 transition-all duration-300" data-testid="button-view-demo">
+                    <Play className="mr-2 h-5 w-5" />
+                    Watch Demo
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl w-full max-h-[80vh] p-0">
+                  <DialogHeader className="p-6 pb-0">
+                    <DialogTitle className="text-xl font-semibold">EaseInn Platform Demo</DialogTitle>
+                  </DialogHeader>
+                  <div className="relative w-full h-0 pb-[56.25%]"> {/* 16:9 aspect ratio */}
+                    <iframe
+                      src="https://www.youtube.com/embed/2B8gABDfh7I?autoplay=1&controls=0&disablekb=1&fs=0&modestbranding=1&rel=0&showinfo=0"
+                      title="EaseInn Platform Demo"
+                      className="absolute top-0 left-0 w-full h-full"
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+                  <div className="p-6 pt-4 text-center text-sm text-gray-600">
+                    Experience EaseInn's comprehensive hotel management features
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
             
             <div className="flex flex-wrap justify-center items-center gap-8 text-sm text-gray-500">
@@ -283,7 +318,7 @@ export default function Landing() {
                   <Hotel className="h-8 w-8 text-white" />
                 </div>
                 <CardTitle className="text-2xl font-bold">Hotelier Plan</CardTitle>
-                <div className="text-5xl font-bold text-blue-600 mt-4">₹2,999
+                <div className="text-5xl font-bold text-blue-600 mt-4">₹{hotelierPrice.toLocaleString()}
                   <span className="text-lg text-gray-500 font-normal">/month</span>
                 </div>
                 <p className="text-gray-500 mt-2">Perfect for single properties</p>
@@ -331,7 +366,7 @@ export default function Landing() {
                   <Sparkles className="h-8 w-8 text-white" />
                 </div>
                 <CardTitle className="text-2xl font-bold text-white">Enterprise Plan</CardTitle>
-                <div className="text-5xl font-bold text-white mt-4">₹9,999
+                <div className="text-5xl font-bold text-white mt-4">₹{enterprisePrice.toLocaleString()}
                   <span className="text-lg text-purple-100 font-normal">/month</span>
                 </div>
                 <p className="text-purple-100 mt-2">For hotel chains & large properties</p>

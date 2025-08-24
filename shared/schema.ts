@@ -17,6 +17,16 @@ export const bookingSourceEnum = pgEnum("booking_source", ["direct", "booking_co
 // User roles enum
 export const userRoleEnum = pgEnum("user_role", ["admin", "hotelier"]);
 
+// Platform settings for admin configuration
+export const platformSettings = pgTable("platform_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: varchar("key", { length: 100 }).notNull().unique(),
+  value: text("value").notNull(),
+  description: text("description"),
+  updatedBy: varchar("updated_by").references(() => users.id),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email", { length: 255 }).unique().notNull(),

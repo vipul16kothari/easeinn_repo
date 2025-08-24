@@ -15,6 +15,134 @@ import { Link } from "wouter";
 import { useState } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
+// Pricing Configuration Component
+function PricingConfigForm() {
+  const { toast } = useToast();
+  const [hotelierPrice, setHotelierPrice] = useState(2999);
+  const [enterprisePrice, setEnterprisePrice] = useState(9999);
+
+  // Fetch current pricing
+  const { data: pricingConfig, isLoading } = useQuery({
+    queryKey: ["/api/admin/pricing-config"],
+    retry: false,
+  });
+
+  const updatePricingMutation = useMutation({
+    mutationFn: async ({ hotelierPrice, enterprisePrice }: { hotelierPrice: number, enterprisePrice: number }) => {
+      return await apiRequest("PUT", "/api/admin/pricing-config", { hotelierPrice, enterprisePrice });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Subscription pricing updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/pricing-config"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update pricing configuration",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update local state when data loads
+  useState(() => {
+    if (pricingConfig) {
+      setHotelierPrice(pricingConfig.hotelierPrice || 2999);
+      setEnterprisePrice(pricingConfig.enterprisePrice || 9999);
+    }
+  }, [pricingConfig]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (hotelierPrice <= 0 || enterprisePrice <= 0) {
+      toast({
+        title: "Validation Error",
+        description: "Prices must be greater than 0",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    updatePricingMutation.mutate({ hotelierPrice, enterprisePrice });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="animate-spin w-6 h-6 border-4 border-primary border-t-transparent rounded-full"></div>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="hotelierPrice">Hotelier Plan (₹/month)</Label>
+        <Input
+          id="hotelierPrice"
+          type="number"
+          min="1"
+          value={hotelierPrice}
+          onChange={(e) => setHotelierPrice(parseInt(e.target.value) || 0)}
+          placeholder="2999"
+          data-testid="input-hotelier-price"
+        />
+        <p className="text-xs text-gray-500">Monthly subscription price for individual hotels</p>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="enterprisePrice">Enterprise Plan (₹/month)</Label>
+        <Input
+          id="enterprisePrice"
+          type="number"
+          min="1"
+          value={enterprisePrice}
+          onChange={(e) => setEnterprisePrice(parseInt(e.target.value) || 0)}
+          placeholder="9999"
+          data-testid="input-enterprise-price"
+        />
+        <p className="text-xs text-gray-500">Monthly subscription price for hotel chains and large properties</p>
+      </div>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-start">
+          <DollarSign className="h-5 w-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-blue-800">Pricing Impact</p>
+            <p className="text-xs text-blue-700 mt-1">
+              Changes will be reflected immediately on the landing page and affect new subscriptions. 
+              Existing subscriptions continue at their current rate.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <Button 
+        type="submit" 
+        className="w-full"
+        disabled={updatePricingMutation.isPending}
+        data-testid="button-update-pricing"
+      >
+        {updatePricingMutation.isPending ? (
+          <>
+            <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+            Updating...
+          </>
+        ) : (
+          <>
+            <Save className="h-4 w-4 mr-2" />
+            Update Pricing
+          </>
+        )}
+      </Button>
+    </form>
+  );
+}
+
 interface AdminStats {
   totalHotels: number;
   totalUsers: number;
