@@ -35,6 +35,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/signup" component={SignupWithPayment} />
+      <Route path="/signup/plans" component={SignupWithPayment} />
       
       {/* Authenticated routes with header */}
       <Route path="/dashboard">
