@@ -219,7 +219,12 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(rooms).where(eq(rooms.status, "available")).orderBy(rooms.number);
   }
 
-  async getGuests(search?: string, limit = 50, offset = 0): Promise<{ guests: (Guest & { room?: Room; checkInDate?: Date })[], total: number }> {
+  async getGuests(search?: string, limit = 50, offset = 0, hotelId?: string): Promise<{ guests: (Guest & { room?: Room; checkInDate?: Date })[], total: number }> {
+    let baseConditions = [];
+    if (hotelId) {
+      baseConditions.push(eq(rooms.hotelId, hotelId));
+    }
+
     let baseQuery = db
       .select({
         id: guests.id,
@@ -245,25 +250,67 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(rooms, eq(checkIns.roomId, rooms.id))
       .orderBy(desc(guests.createdAt));
 
+    if (baseConditions.length > 0) {
+      baseQuery = baseQuery.where(and(...baseConditions));
+    }
+
     let results;
     if (search) {
-      results = await baseQuery
-        .where(
-          or(
-            ilike(guests.fullName, `%${search}%`),
-            ilike(guests.phone, `%${search}%`)
-          )
+      let searchConditions = [
+        or(
+          ilike(guests.fullName, `%${search}%`),
+          ilike(guests.phone, `%${search}%`)
         )
+      ];
+      if (baseConditions.length > 0) {
+        searchConditions.push(...baseConditions);
+      }
+      
+      results = await db
+        .select({
+          id: guests.id,
+          fullName: guests.fullName,
+          phone: guests.phone,
+          address: guests.address,
+          comingFrom: guests.comingFrom,
+          nationality: guests.nationality,
+          numberOfMales: guests.numberOfMales,
+          numberOfFemales: guests.numberOfFemales,
+          numberOfChildren: guests.numberOfChildren,
+          purposeOfVisit: guests.purposeOfVisit,
+          destination: guests.destination,
+          documentType: guests.documentType,
+          documentNumber: guests.documentNumber,
+          signature: guests.signature,
+          createdAt: guests.createdAt,
+          room: rooms,
+          checkInDate: checkIns.checkInDate,
+        })
+        .from(guests)
+        .leftJoin(checkIns, and(eq(checkIns.guestId, guests.id), eq(checkIns.isActive, true)))
+        .leftJoin(rooms, eq(checkIns.roomId, rooms.id))
+        .where(and(...searchConditions))
+        .orderBy(desc(guests.createdAt))
         .limit(limit)
         .offset(offset);
     } else {
       results = await baseQuery.limit(limit).offset(offset);
     }
 
-    const totalCount = await db.select({ count: sql<number>`count(*)` }).from(guests);
+    let totalCount;
+    if (hotelId) {
+      totalCount = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(guests)
+        .leftJoin(checkIns, and(eq(checkIns.guestId, guests.id), eq(checkIns.isActive, true)))
+        .leftJoin(rooms, eq(checkIns.roomId, rooms.id))
+        .where(eq(rooms.hotelId, hotelId));
+    } else {
+      totalCount = await db.select({ count: sql<number>`count(*)` }).from(guests);
+    }
     
     return {
-      guests: results.map(r => ({
+      guests: results.map((r: any) => ({
         ...r,
         room: r.room || undefined,
         checkInDate: r.checkInDate || undefined
@@ -285,33 +332,63 @@ export class DatabaseStorage implements IStorage {
     return newGuest;
   }
 
-  async getCheckIns(): Promise<(CheckIn & { guest: Guest; room: Room })[]> {
-    const results = await db
-      .select({
-        checkIn: checkIns,
-        guest: guests,
-        room: rooms
-      })
-      .from(checkIns)
-      .innerJoin(guests, eq(checkIns.guestId, guests.id))
-      .innerJoin(rooms, eq(checkIns.roomId, rooms.id))
-      .orderBy(desc(checkIns.createdAt));
+  async getCheckIns(hotelId?: string): Promise<(CheckIn & { guest: Guest; room: Room })[]> {
+    let results;
+    if (hotelId) {
+      results = await db
+        .select({
+          checkIn: checkIns,
+          guest: guests,
+          room: rooms
+        })
+        .from(checkIns)
+        .innerJoin(guests, eq(checkIns.guestId, guests.id))
+        .innerJoin(rooms, eq(checkIns.roomId, rooms.id))
+        .where(eq(rooms.hotelId, hotelId))
+        .orderBy(desc(checkIns.createdAt));
+    } else {
+      results = await db
+        .select({
+          checkIn: checkIns,
+          guest: guests,
+          room: rooms
+        })
+        .from(checkIns)
+        .innerJoin(guests, eq(checkIns.guestId, guests.id))
+        .innerJoin(rooms, eq(checkIns.roomId, rooms.id))
+        .orderBy(desc(checkIns.createdAt));
+    }
     
     return results.map(r => ({ ...r.checkIn, guest: r.guest, room: r.room }));
   }
 
-  async getActiveCheckIns(): Promise<(CheckIn & { guest: Guest; room: Room })[]> {
-    const results = await db
-      .select({
-        checkIn: checkIns,
-        guest: guests,
-        room: rooms
-      })
-      .from(checkIns)
-      .innerJoin(guests, eq(checkIns.guestId, guests.id))
-      .innerJoin(rooms, eq(checkIns.roomId, rooms.id))
-      .where(eq(checkIns.isActive, true))
-      .orderBy(desc(checkIns.createdAt));
+  async getActiveCheckIns(hotelId?: string): Promise<(CheckIn & { guest: Guest; room: Room })[]> {
+    let results;
+    if (hotelId) {
+      results = await db
+        .select({
+          checkIn: checkIns,
+          guest: guests,
+          room: rooms
+        })
+        .from(checkIns)
+        .innerJoin(guests, eq(checkIns.guestId, guests.id))
+        .innerJoin(rooms, eq(checkIns.roomId, rooms.id))
+        .where(and(eq(checkIns.isActive, true), eq(rooms.hotelId, hotelId)))
+        .orderBy(desc(checkIns.createdAt));
+    } else {
+      results = await db
+        .select({
+          checkIn: checkIns,
+          guest: guests,
+          room: rooms
+        })
+        .from(checkIns)
+        .innerJoin(guests, eq(checkIns.guestId, guests.id))
+        .innerJoin(rooms, eq(checkIns.roomId, rooms.id))
+        .where(eq(checkIns.isActive, true))
+        .orderBy(desc(checkIns.createdAt));
+    }
     
     return results.map(r => ({ ...r.checkIn, guest: r.guest, room: r.room }));
   }
@@ -347,19 +424,24 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getRoomStatistics(): Promise<{
+  async getRoomStatistics(hotelId?: string): Promise<{
     available: number;
     occupied: number;
     cleaning: number;
     maintenance: number;
   }> {
-    const stats = await db
+    let query = db
       .select({
         status: rooms.status,
         count: sql<number>`count(*)`
       })
-      .from(rooms)
-      .groupBy(rooms.status);
+      .from(rooms);
+    
+    if (hotelId) {
+      query = query.where(eq(rooms.hotelId, hotelId));
+    }
+    
+    const stats = await query.groupBy(rooms.status);
     
     const result = {
       available: 0,

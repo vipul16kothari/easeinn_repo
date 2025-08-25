@@ -33,18 +33,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
   
   // Room routes (protected)
-  app.get("/api/rooms", authenticateToken, requireActiveHotel(storage), checkTrialExpiration, async (req, res) => {
+  app.get("/api/rooms", authenticateToken, requireActiveHotel(storage), checkTrialExpiration, async (req: any, res) => {
     try {
-      const rooms = await storage.getRooms();
+      const hotelId = req.user.role === "admin" ? undefined : req.hotel?.id;
+      const rooms = await storage.getRooms(hotelId);
       res.json(rooms);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch rooms" });
     }
   });
 
-  app.get("/api/rooms/available", authenticateToken, requireActiveHotel(storage), checkTrialExpiration, async (req, res) => {
+  app.get("/api/rooms/available", authenticateToken, requireActiveHotel(storage), checkTrialExpiration, async (req: any, res) => {
     try {
-      const rooms = await storage.getAvailableRooms();
+      const hotelId = req.user.role === "admin" ? undefined : req.hotel?.id;
+      const rooms = await storage.getAvailableRooms(hotelId);
       res.json(rooms);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch available rooms" });
@@ -115,26 +117,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Guest routes
-  app.get("/api/guests", async (req, res) => {
+  app.get("/api/guests", authenticateToken, requireActiveHotel(storage), async (req: any, res) => {
     try {
       const search = req.query.search as string;
       const limit = parseInt(req.query.limit as string) || 50;
       const offset = parseInt(req.query.offset as string) || 0;
+      const hotelId = req.user.role === "admin" ? undefined : req.hotel?.id;
       
-      const result = await storage.getGuests(search, limit, offset);
+      const result = await storage.getGuests(search, limit, offset, hotelId);
       res.json(result);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch guests" });
     }
   });
 
-  app.get("/api/guests/:id", async (req, res) => {
+  app.get("/api/guests/:id", authenticateToken, requireActiveHotel(storage), async (req: any, res) => {
     try {
       const { id } = req.params;
       const guest = await storage.getGuest(id);
       
       if (!guest) {
         return res.status(404).json({ message: "Guest not found" });
+      }
+      
+      // Check if guest belongs to hotelier's hotel (for hoteliers)
+      if (req.user.role === "hotelier") {
+        const guestCheckIns = await storage.getCheckIns(req.hotel?.id);
+        const guestBelongsToHotel = guestCheckIns.some(checkIn => checkIn.guestId === id);
+        if (!guestBelongsToHotel) {
+          return res.status(403).json({ message: "Access denied" });
+        }
       }
       
       res.json(guest);
@@ -158,18 +170,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Check-in routes
-  app.get("/api/checkins", async (req, res) => {
+  app.get("/api/checkins", authenticateToken, requireActiveHotel(storage), async (req: any, res) => {
     try {
-      const checkIns = await storage.getCheckIns();
+      const hotelId = req.user.role === "admin" ? undefined : req.hotel?.id;
+      const checkIns = await storage.getCheckIns(hotelId);
       res.json(checkIns);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch check-ins" });
     }
   });
 
-  app.get("/api/checkins/active", async (req, res) => {
+  app.get("/api/checkins/active", authenticateToken, requireActiveHotel(storage), async (req: any, res) => {
     try {
-      const activeCheckIns = await storage.getActiveCheckIns();
+      const hotelId = req.user.role === "admin" ? undefined : req.hotel?.id;
+      const activeCheckIns = await storage.getActiveCheckIns(hotelId);
       res.json(activeCheckIns);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch active check-ins" });
@@ -201,9 +215,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Statistics routes
-  app.get("/api/statistics/rooms", async (req, res) => {
+  app.get("/api/statistics/rooms", authenticateToken, requireActiveHotel(storage), async (req: any, res) => {
     try {
-      const stats = await storage.getRoomStatistics();
+      const hotelId = req.user.role === "admin" ? undefined : req.hotel?.id;
+      const stats = await storage.getRoomStatistics(hotelId);
       res.json(stats);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch room statistics" });
@@ -255,9 +270,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Booking routes
-  app.get("/api/bookings", async (req, res) => {
+  app.get("/api/bookings", authenticateToken, requireActiveHotel(storage), async (req: any, res) => {
     try {
-      const bookings = await storage.getBookings();
+      const hotelId = req.user.role === "admin" ? undefined : req.hotel?.id;
+      const bookings = await storage.getBookings(hotelId);
       res.json(bookings);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch bookings" });
@@ -346,16 +362,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/calendar/events", async (req, res) => {
+  app.get("/api/calendar/events", authenticateToken, requireActiveHotel(storage), async (req: any, res) => {
     try {
       const { start, end } = req.query;
       const startDate = new Date(start as string);
       const endDate = new Date(end as string);
+      const hotelId = req.user.role === "admin" ? undefined : req.hotel?.id;
       
       // Get both active check-ins and confirmed bookings for the date range
       const [activeCheckIns, bookings] = await Promise.all([
-        storage.getActiveCheckIns(),
-        storage.getBookingsByDateRange(startDate, endDate)
+        storage.getActiveCheckIns(hotelId),
+        storage.getBookingsByDateRange(startDate, endDate, hotelId)
       ]);
       
       // Format events for calendar
