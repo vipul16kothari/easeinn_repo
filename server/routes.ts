@@ -859,10 +859,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Razorpay config endpoint (public key)
   app.get("/api/payments/config", (req, res) => {
+    try {
+      if (!process.env.RAZORPAY_KEY_ID) {
+        console.error("Razorpay key not configured");
+        return res.status(500).json({ message: "Payment system not configured" });
+      }
+      res.json({
+        razorpay_key_id: process.env.RAZORPAY_KEY_ID,
+      });
+    } catch (error) {
+      console.error("Razorpay config error:", error);
+      res.status(500).json({ message: "Failed to get payment configuration" });
+    }
+  });
 
-    res.json({
-      razorpay_key_id: process.env.RAZORPAY_KEY_ID || "",
-    });
+  // Test endpoint for Razorpay order creation (temporary for production testing)
+  app.post("/api/payments/test-subscription-order", async (req, res) => {
+    try {
+      const { hotelId, amount, planName } = req.body;
+      
+      if (!hotelId || !amount || !planName) {
+        return res.status(400).json({ message: "Missing required parameters" });
+      }
+
+      const order = await createSubscriptionOrder(hotelId, amount, planName);
+      
+      res.json({
+        success: true,
+        orderId: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        receipt: order.receipt,
+        status: order.status
+      });
+    } catch (error) {
+      console.error("Test order creation error:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: error.message || "Failed to create test order" 
+      });
+    }
+  });
+
+  // Test endpoint for booking order creation
+  app.post("/api/payments/test-booking-order", async (req, res) => {
+    try {
+      const { hotelId, amount, bookingId, guestName } = req.body;
+      
+      if (!hotelId || !amount || !bookingId || !guestName) {
+        return res.status(400).json({ message: "Missing required parameters" });
+      }
+
+      const order = await createBookingOrder(hotelId, amount, bookingId, guestName);
+      
+      res.json({
+        success: true,
+        orderId: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        receipt: order.receipt,
+        status: order.status
+      });
+    } catch (error) {
+      console.error("Test booking order creation error:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: error.message || "Failed to create test booking order" 
+      });
+    }
   });
 
   // Registration with payment endpoint
