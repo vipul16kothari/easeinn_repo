@@ -84,6 +84,17 @@ export default function Payments() {
   });
 
   // Handle Razorpay payment
+  // Check payment status with polling
+  const checkPaymentStatus = async (paymentId: string) => {
+    try {
+      const response = await apiRequest("GET", `/api/payments/status/${paymentId}`);
+      return response;
+    } catch (error) {
+      console.error('Error checking payment status:', error);
+      return { status: 'unknown' };
+    }
+  };
+
   const handleRazorpayPayment = (order: any, type: string) => {
     if (!window.Razorpay) {
       toast({
@@ -103,24 +114,79 @@ export default function Payments() {
       order_id: order.id,
       handler: async (response: any) => {
         try {
-          await apiRequest("POST", "/api/payments/verify", {
+          const verifyResponse = await apiRequest("POST", "/api/payments/verify", {
             razorpay_order_id: response.razorpay_order_id,
             razorpay_payment_id: response.razorpay_payment_id,
             razorpay_signature: response.razorpay_signature,
           });
           
-          toast({
-            title: "Payment Successful",
-            description: "Your payment has been processed successfully",
-          });
+          const result = await verifyResponse.json();
           
-          // Refresh payment history
-          queryClient.invalidateQueries({ queryKey: ["/api/payments/history"] });
+          if (result.status === 'success') {
+            toast({
+              title: "Payment Successful",
+              description: `Your payment has been processed successfully. Status: ${result.actualStatus || 'confirmed'}`,
+            });
+            queryClient.invalidateQueries({ queryKey: ["/api/payments/history"] });
+          } else if (result.status === 'failed') {
+            toast({
+              title: "Payment Failed",
+              description: "Your payment could not be processed. Please try again.",
+              variant: "destructive",
+            });
+          } else {
+            // Payment might be pending, start polling for final status
+            toast({
+              title: "Payment Processing",
+              description: "Please wait while we confirm your payment...",
+            });
+            
+            // Poll for status updates every 2 seconds, up to 15 times (30 seconds)
+            let attempts = 0;
+            const maxAttempts = 15;
+            
+            const pollStatus = setInterval(async () => {
+              attempts++;
+              const statusResult = await checkPaymentStatus(response.razorpay_payment_id);
+              
+              if (statusResult.status === 'captured' || statusResult.status === 'success') {
+                clearInterval(pollStatus);
+                toast({
+                  title: "Payment Confirmed",
+                  description: "Your payment has been successfully confirmed!",
+                });
+                queryClient.invalidateQueries({ queryKey: ["/api/payments/history"] });
+              } else if (statusResult.status === 'failed') {
+                clearInterval(pollStatus);
+                toast({
+                  title: "Payment Failed",
+                  description: "Your payment has failed. If money was debited, it will be refunded.",
+                  variant: "destructive",
+                });
+              } else if (attempts >= maxAttempts) {
+                clearInterval(pollStatus);
+                toast({
+                  title: "Payment Status Pending",
+                  description: "Please check your payment history or contact support if needed.",
+                  variant: "destructive",
+                });
+              }
+            }, 2000);
+          }
           
         } catch (error) {
           toast({
-            title: "Payment Verification Failed",
-            description: "Payment was completed but verification failed",
+            title: "Payment Verification Error",
+            description: "Could not verify payment. Please contact support if money was debited.",
+            variant: "destructive",
+          });
+        }
+      },
+      modal: {
+        ondismiss: () => {
+          toast({
+            title: "Payment Cancelled",
+            description: "Payment was cancelled",
             variant: "destructive",
           });
         }

@@ -107,12 +107,26 @@ export function verifyPaymentSignature(orderId: string, paymentId: string, signa
   return expectedSignature === signature;
 }
 
+// Verify Razorpay webhook signature
+export function verifyWebhookSignature(body: string, signature: string): boolean {
+  if (!process.env.RAZORPAY_KEY_SECRET) {
+    throw new Error('Razorpay key secret not found');
+  }
+
+  const expectedSignature = crypto
+    .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+    .update(body)
+    .digest('hex');
+
+  return expectedSignature === signature;
+}
+
 // Update payment status after successful payment
 export async function updatePaymentStatus(
   razorpayOrderId: string, 
   razorpayPaymentId: string, 
   signature: string,
-  status: 'success' | 'failed'
+  status: 'success' | 'failed' | 'captured' | 'authorized'
 ) {
   try {
     const [payment] = await db
@@ -120,7 +134,7 @@ export async function updatePaymentStatus(
       .set({
         razorpayPaymentId,
         razorpaySignature: signature,
-        paymentStatus: status,
+        paymentStatus: status === 'captured' || status === 'authorized' ? 'success' : status,
         updatedAt: new Date()
       })
       .where(eq(payments.razorpayOrderId, razorpayOrderId))
@@ -130,6 +144,79 @@ export async function updatePaymentStatus(
   } catch (error) {
     console.error('Error updating payment status:', error);
     throw new Error('Failed to update payment status');
+  }
+}
+
+// Update payment status from webhook
+export async function updatePaymentStatusFromWebhook(
+  razorpayPaymentId: string,
+  status: string,
+  webhookData: any
+) {
+  try {
+    let paymentStatus: 'success' | 'failed' | 'pending' = 'pending';
+    
+    switch (status) {
+      case 'captured':
+      case 'authorized':
+        paymentStatus = 'success';
+        break;
+      case 'failed':
+        paymentStatus = 'failed';
+        break;
+      default:
+        paymentStatus = 'pending';
+    }
+
+    const [payment] = await db
+      .update(payments)
+      .set({
+        paymentStatus,
+        updatedAt: new Date(),
+        // Store additional webhook data for debugging
+        razorpaySignature: webhookData.signature || null
+      })
+      .where(eq(payments.razorpayPaymentId, razorpayPaymentId))
+      .returning();
+
+    return payment;
+  } catch (error) {
+    console.error('Error updating payment status from webhook:', error);
+    throw new Error('Failed to update payment status from webhook');
+  }
+}
+
+// Get payment by Razorpay payment ID
+export async function getPaymentByPaymentId(razorpayPaymentId: string) {
+  try {
+    const [payment] = await db
+      .select()
+      .from(payments)
+      .where(eq(payments.razorpayPaymentId, razorpayPaymentId));
+
+    return payment;
+  } catch (error) {
+    console.error('Error fetching payment by payment ID:', error);
+    throw new Error('Failed to fetch payment');
+  }
+}
+
+// Check payment status with Razorpay API
+export async function checkPaymentStatusWithAPI(razorpayPaymentId: string) {
+  const razorpay = createRazorpayInstance();
+  
+  try {
+    const payment = await razorpay.payments.fetch(razorpayPaymentId);
+    return {
+      id: payment.id,
+      status: payment.status,
+      amount: payment.amount,
+      captured: payment.captured,
+      method: payment.method
+    };
+  } catch (error) {
+    console.error('Error checking payment status with API:', error);
+    throw new Error('Failed to check payment status');
   }
 }
 

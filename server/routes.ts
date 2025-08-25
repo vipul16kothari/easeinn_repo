@@ -9,12 +9,14 @@ import { z } from "zod";
 import { platformSettings } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { db } from "./db";
+import express from "express";
 import { 
   createSubscriptionOrder, 
   createBookingOrder, 
   verifyPaymentSignature, 
   updatePaymentStatus,
-  getHotelPayments 
+  getHotelPayments,
+  checkPaymentStatusWithAPI
 } from "./razorpay";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -826,8 +828,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const isValid = verifyPaymentSignature(razorpay_order_id, razorpay_payment_id, razorpay_signature);
       
       if (isValid) {
-        await updatePaymentStatus(razorpay_order_id, razorpay_payment_id, razorpay_signature, 'success');
-        res.json({ status: 'success', message: 'Payment verified successfully' });
+        // Check actual payment status with Razorpay API for UPI payments
+        try {
+          const paymentStatus = await checkPaymentStatusWithAPI(razorpay_payment_id);
+          const status = paymentStatus.status === 'captured' || paymentStatus.status === 'authorized' ? 'success' : 
+                       paymentStatus.status === 'failed' ? 'failed' : 'success';
+          
+          await updatePaymentStatus(razorpay_order_id, razorpay_payment_id, razorpay_signature, status);
+          res.json({ 
+            status: status, 
+            message: 'Payment verified successfully',
+            actualStatus: paymentStatus.status
+          });
+        } catch (apiError: any) {
+          // If API check fails but signature is valid, mark as success
+          await updatePaymentStatus(razorpay_order_id, razorpay_payment_id, razorpay_signature, 'success');
+          res.json({ status: 'success', message: 'Payment verified successfully' });
+        }
       } else {
         await updatePaymentStatus(razorpay_order_id, razorpay_payment_id, razorpay_signature, 'failed');
         res.status(400).json({ status: 'failed', message: 'Payment verification failed' });
@@ -835,6 +852,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Payment verification error:", error);
       res.status(500).json({ message: "Failed to verify payment" });
+    }
+  });
+
+  // Simple webhook endpoint for Razorpay
+  app.post("/api/payments/webhook", async (req, res) => {
+    try {
+      const signature = req.headers['x-razorpay-signature'] as string;
+      
+      if (!signature) {
+        return res.status(400).json({ message: "Missing signature" });
+      }
+
+      const body = JSON.stringify(req.body);
+      
+      // Simple signature verification (you can enhance this later)
+      const crypto = await import('crypto');
+      const expectedSignature = crypto
+        .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
+        .update(body)
+        .digest('hex');
+
+      if (expectedSignature !== signature) {
+        return res.status(400).json({ message: "Invalid signature" });
+      }
+
+      const webhookData = JSON.parse(body);
+      console.log(`Received webhook: ${webhookData.event}`);
+
+      // Handle payment status updates
+      if (webhookData.event === 'payment.captured' || webhookData.event === 'payment.authorized') {
+        console.log(`Payment captured: ${webhookData.payload.payment.entity.id}`);
+      } else if (webhookData.event === 'payment.failed') {
+        console.log(`Payment failed: ${webhookData.payload.payment.entity.id}`);
+      }
+
+      res.json({ status: 'ok' });
+    } catch (error: any) {
+      console.error("Webhook error:", error);
+      res.status(500).json({ message: "Webhook failed" });
+    }
+  });
+
+  // Check payment status endpoint
+  app.get("/api/payments/status/:paymentId", async (req, res) => {
+    try {
+      const { paymentId } = req.params;
+      
+      // Check payment status with Razorpay API
+      const paymentStatus = await checkPaymentStatusWithAPI(paymentId);
+      
+      res.json({
+        paymentId: paymentId,
+        status: paymentStatus.status,
+        captured: paymentStatus.captured,
+        amount: paymentStatus.amount,
+        method: paymentStatus.method
+      });
+    } catch (error: any) {
+      console.error("Error checking payment status:", error);
+      res.status(500).json({ message: "Failed to check payment status" });
     }
   });
 
