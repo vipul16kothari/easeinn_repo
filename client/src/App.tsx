@@ -26,6 +26,7 @@ import Contact from "./pages/contact";
 import Refunds from "./pages/refunds";
 import SignupWithPayment from "./pages/signup-with-payment";
 import SignupPlaces from "./pages/signup-places";
+import PropertyDiscovery from "./pages/property-discovery";
 import Header from "./components/header";
 
 function Router() {
@@ -38,6 +39,7 @@ function Router() {
       <Route path="/signup" component={SignupPlaces} />
       <Route path="/signup/plans" component={SignupPlaces} />
       <Route path="/signup-old" component={SignupWithPayment} />
+      <Route path="/property-discovery" component={PropertyDiscovery} />
       
       {/* Authenticated routes with header */}
       <Route path="/dashboard">

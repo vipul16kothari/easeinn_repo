@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Plus, Edit, Bed, AlertTriangle } from "lucide-react";
 import { useHotelConfig } from "@/hooks/useHotelConfig";
+import PaymentNudge, { usePaymentNudge } from "@/components/payment-nudge";
 import type { Room, InsertRoom } from "@shared/schema";
 
 export default function RoomsPage() {
@@ -26,6 +27,7 @@ export default function RoomsPage() {
   const { hotel, config } = useHotelConfig();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
+  const paymentNudge = usePaymentNudge();
   const [newRoom, setNewRoom] = useState<InsertRoom>({
     number: "",
     type: "standard",
@@ -88,6 +90,14 @@ export default function RoomsPage() {
     },
   });
 
+  const handleAddRoomClick = () => {
+    if (paymentNudge.hasExpiredTrial) {
+      paymentNudge.openNudge("room management", "add");
+      return;
+    }
+    setIsAddDialogOpen(true);
+  };
+
   const handleCreateRoom = () => {
     if (!newRoom.number.trim()) {
       toast({
@@ -110,6 +120,10 @@ export default function RoomsPage() {
   };
 
   const handleStatusChange = (room: Room, newStatus: string) => {
+    if (paymentNudge.hasExpiredTrial) {
+      paymentNudge.openNudge("room status", "update");
+      return;
+    }
     updateRoomStatusMutation.mutate({ id: room.id, status: newStatus });
   };
 
@@ -147,13 +161,11 @@ export default function RoomsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Room Management</h1>
           <p className="text-gray-600 mt-1">Manage your hotel rooms and their status</p>
         </div>
+        <Button data-testid="button-add-room" onClick={handleAddRoomClick}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Room
+        </Button>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-add-room">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Room
-            </Button>
-          </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Add New Room</DialogTitle>
@@ -301,6 +313,14 @@ export default function RoomsPage() {
           ))}
         </div>
       )}
+
+      {/* Payment Nudge Dialog */}
+      <PaymentNudge 
+        isOpen={paymentNudge.isOpen}
+        onClose={paymentNudge.closeNudge}
+        feature={paymentNudge.context.feature}
+        action={paymentNudge.context.action}
+      />
     </div>
   );
 }

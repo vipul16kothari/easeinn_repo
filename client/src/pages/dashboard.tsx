@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import StatsCard from "@/components/stats-card";
 import RoomCard from "@/components/room-card";
 import TrialStatus from "@/components/trial-status";
+import ProfileCompleteness from "@/components/profile-completeness";
 import { Room } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -101,6 +102,9 @@ export default function Dashboard() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" data-testid="dashboard-container">
       {/* Trial Status Banner */}
       <TrialStatus />
+      
+      {/* Profile Completeness */}
+      <ProfileCompleteness />
       
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">

@@ -1157,6 +1157,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Link property to logged-in user (Property Discovery flow)
+  app.post("/api/hotels/link-property", authenticateToken, async (req: any, res) => {
+    try {
+      const userId = req.user.userId;
+      const { placeDetails, manualDetails } = req.body;
+      
+      if (!placeDetails && !manualDetails) {
+        return res.status(400).json({ message: "Property details are required" });
+      }
+
+      // Check if user already has a hotel
+      const existingHotels = await storage.getHotelsByOwnerId(userId);
+      if (existingHotels.length > 0) {
+        return res.status(400).json({ 
+          message: "You already have a property linked. Please contact support to add additional properties.",
+          hotel: existingHotels[0]
+        });
+      }
+
+      let hotelData: any;
+
+      if (placeDetails) {
+        // Google Places data
+        hotelData = {
+          name: placeDetails.name,
+          address: placeDetails.address,
+          phone: placeDetails.phone || '',
+          email: req.user.email,
+          ownerId: userId,
+          subscriptionPlan: "trial", // Start with trial
+          maxRooms: 50,
+          enabledRooms: 10,
+          googlePlaceId: placeDetails.placeId,
+          googleRating: placeDetails.rating?.toString(),
+          googleReviewCount: placeDetails.reviewCount,
+          website: placeDetails.website,
+          latitude: placeDetails.latitude?.toString(),
+          longitude: placeDetails.longitude?.toString(),
+          city: placeDetails.city,
+          state: placeDetails.state,
+          country: placeDetails.country,
+          postalCode: placeDetails.postalCode,
+          placeTypes: placeDetails.types,
+          photoUrl: placeDetails.photoUrl
+        };
+      } else {
+        // Manual entry data
+        hotelData = {
+          name: manualDetails.name,
+          address: manualDetails.address,
+          phone: manualDetails.phone || '',
+          email: manualDetails.email || req.user.email,
+          ownerId: userId,
+          subscriptionPlan: "trial", // Start with trial
+          maxRooms: 50,
+          enabledRooms: 10,
+          city: manualDetails.city,
+          state: manualDetails.state,
+          postalCode: manualDetails.pincode,
+          country: "India"
+        };
+      }
+
+      // Set trial dates
+      const now = new Date();
+      const trialEnd = new Date(now);
+      trialEnd.setDate(trialEnd.getDate() + 14); // 14 days trial
+      
+      hotelData.subscriptionStartDate = now;
+      hotelData.subscriptionEndDate = trialEnd;
+      hotelData.monthlyRate = "0.00";
+
+      const newHotel = await storage.createHotel(hotelData);
+
+      res.status(201).json({
+        message: "Property linked successfully",
+        hotel: {
+          id: newHotel.id,
+          name: newHotel.name,
+          address: newHotel.address
+        },
+        trial: {
+          startDate: now,
+          endDate: trialEnd,
+          daysRemaining: 14
+        }
+      });
+
+    } catch (error: any) {
+      console.error("Link property error:", error);
+      res.status(500).json({ message: error.message || "Failed to link property" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

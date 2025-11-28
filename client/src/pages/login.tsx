@@ -48,10 +48,10 @@ export default function Login() {
 
   const loginMutation = useMutation({
     mutationFn: async (data: LoginFormData) => {
-      return await apiRequest("POST", "/api/auth/login", data);
+      const response = await apiRequest("POST", "/api/auth/login", data);
+      return await response.json();
     },
-    onSuccess: (response) => {
-      const result = response.json();
+    onSuccess: (result) => {
       toast({
         title: "Success",
         description: "Logged in successfully",
@@ -61,7 +61,13 @@ export default function Login() {
       if (form.getValues("role") === "admin") {
         setLocation("/admin/dashboard");
       } else {
-        setLocation("/dashboard");
+        // Check if hotelier has a linked hotel
+        if (!result.hotels || result.hotels.length === 0) {
+          // No hotel linked - redirect to property discovery
+          setLocation("/property-discovery");
+        } else {
+          setLocation("/dashboard");
+        }
       }
     },
     onError: (error: any) => {
