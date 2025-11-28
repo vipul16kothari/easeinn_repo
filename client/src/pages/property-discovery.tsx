@@ -436,12 +436,37 @@ export default function PropertyDiscovery() {
               <Loader2 className="w-5 h-5 mr-2 animate-spin" />
               Searching...
             </>
+          ) : !placesLoaded ? (
+            <>
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              Loading search...
+            </>
           ) : (
             <>
               <Search className="w-5 h-5 mr-2" />
               Search Online
             </>
           )}
+        </Button>
+
+        <div className="text-center text-gray-500 py-2">OR</div>
+
+        <Button 
+          variant="outline"
+          onClick={() => {
+            setManualForm({
+              ...manualForm,
+              name: searchForm.propertyName,
+              city: searchForm.city,
+              state: searchForm.state
+            });
+            setCurrentStep("manual");
+          }}
+          className="w-full h-12"
+          data-testid="button-skip-to-manual"
+        >
+          <Edit3 className="w-4 h-4 mr-2" />
+          Skip search & Enter manually
         </Button>
       </CardContent>
     </Card>
