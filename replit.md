@@ -18,6 +18,13 @@ The platform provides enterprise-level hotel management functionality including:
 - Responsive design optimized for desktop and tablet usage
 
 ## Recent Changes (November 28, 2025)
+- **SuperAdmin Unrestricted Access**: SuperAdmin role bypasses all authorization middleware (requireRole, requireActiveHotel, requireHotelOwner, checkTrialExpiration) and room/subscription limits
+- **Room Limit Bypass**: SuperAdmin can add unlimited rooms regardless of subscription plan or hotel enabledRooms setting
+- **Profile Completion Enhancement**: Inline edit dialog for hotel profile fields (name, address, phone, email, GST) with accurate completion status
+- **Razorpay Payment Success Feedback**: Canvas-confetti celebration animation on successful payment completion
+- **Hotel Profile Update Endpoint**: PATCH /api/hotels/:id for hoteliers to update their own hotel information
+- **API Response Handling Fix**: Corrected apiRequest usage to properly parse JSON responses from all API calls
+- **Trust Proxy Configuration**: Fixed Express trust proxy setting to resolve rate limiting warnings in production
 - **SuperAdmin Dashboard**: Complete platform management with leads, hotels, users, and audit logs tabs
 - **Lead Management System**: Hotel lead tracking with conversion to active hotels
 - **Subscription Entitlements**: Feature access control based on subscription plan (trial, starter, standard, professional, enterprise)
