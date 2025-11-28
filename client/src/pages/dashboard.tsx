@@ -4,6 +4,7 @@ import StatsCard from "@/components/stats-card";
 import RoomCard from "@/components/room-card";
 import TrialStatus from "@/components/trial-status";
 import ProfileCompleteness from "@/components/profile-completeness";
+import PendingCheckInRequests from "@/components/pending-checkin-requests";
 import { Room } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -105,6 +106,9 @@ export default function Dashboard() {
       
       {/* Profile Completeness */}
       <ProfileCompleteness />
+      
+      {/* Pending Check-in Requests from QR code */}
+      <PendingCheckInRequests />
       
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
