@@ -213,16 +213,15 @@ export function setupAuthRoutes(app: Express) {
         { expiresIn: JWT_EXPIRES_IN }
       );
       
-      // Set HTTP-only cookie
+      // Set HTTP-only cookie with production security
+      const isProduction = process.env.NODE_ENV === 'production';
       res.cookie("authToken", token, {
         httpOnly: true,
-        secure: false,
-        sameSite: "none", // Allow cross-site requests
+        secure: isProduction, // Only secure in production
+        sameSite: isProduction ? "strict" : "lax", // Strict in prod, lax in dev
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         path: "/",
       });
-      
-      console.log("JWT token set as cookie for user:", user.email);
       
       // Get user's hotel(s) if hotelier
       let hotels: any[] = [];
@@ -314,24 +313,25 @@ export function setupAuthRoutes(app: Express) {
 // Authentication middleware
 export function authenticateToken(req: any, res: Response, next: NextFunction) {
   const token = req.cookies?.authToken;
+  const isDev = process.env.NODE_ENV !== 'production';
   
-  // Debug logging
-  console.log("Auth middleware - path:", req.path);
-  console.log("Auth middleware - cookies:", Object.keys(req.cookies || {}));
-  console.log("Auth middleware - authToken exists:", !!token);
+  // Debug logging only in development
+  if (isDev) {
+    console.log(`[Auth] ${req.method} ${req.path} - token: ${token ? 'present' : 'missing'}`);
+  }
   
   if (!token) {
-    console.log("No auth token found in cookies");
     return res.status(401).json({ message: "Access token required" });
   }
   
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as any;
     req.user = decoded;
-    console.log("Token verified successfully for user:", decoded.email);
     next();
-  } catch (error) {
-    console.error("Token verification error:", error);
+  } catch (error: any) {
+    if (isDev) {
+      console.error(`[Auth] Token verification failed: ${error.message}`);
+    }
     res.status(403).json({ message: "Invalid or expired token" });
   }
 }

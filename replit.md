@@ -6,16 +6,28 @@ This is a comprehensive B2B hotel management platform built as a full-stack web 
 
 The platform provides enterprise-level hotel management functionality including:
 - Multi-tenancy support for hotel chains and independent properties
-- Role-based authentication (Admin and Hotelier access levels)
+- Role-based authentication (SuperAdmin, Admin, and Hotelier access levels)
 - Complete guest lifecycle management (check-in, stay tracking, checkout)
-- **Advance booking management for future reservations**
+- Advance booking management with booking-to-checkin conversion
 - GST-compliant invoice generation with Indian tax law compliance
 - Real-time room inventory and calendar management with booking visibility
-- Comprehensive reporting and analytics dashboard
+- Comprehensive reporting and analytics dashboard with charts
+- Subscription-based entitlements with feature access control
+- Razorpay payment integration with webhook handling
 - Landing page with B2B pricing and registration flow
 - Responsive design optimized for desktop and tablet usage
 
 ## Recent Changes (November 28, 2025)
+- **SuperAdmin Dashboard**: Complete platform management with leads, hotels, users, and audit logs tabs
+- **Lead Management System**: Hotel lead tracking with conversion to active hotels
+- **Subscription Entitlements**: Feature access control based on subscription plan (trial, starter, standard, professional, enterprise)
+- **Enhanced Booking System**: Booking updates, cancellations, and conversion to check-ins
+- **Razorpay Webhook Handling**: Payment.captured, payment.failed, and refund event processing with automatic subscription renewal
+- **Reports & Analytics**: Interactive dashboard with occupancy, revenue, GST reports using Recharts
+- **Production Security**: Helmet security headers, rate limiting, improved error handling
+- **Audit Logging**: Comprehensive tracking of all admin actions
+
+## Previous Updates (November 28, 2025)
 - **DigiStay-Inspired Landing Page Redesign**: Complete redesign with clean, customer-friendly UI
 - **Glassmorphism Header**: Fixed position header with blur effect and purple color scheme
 - **Interactive Feature Tabs**: 8 feature categories with dynamic content switching

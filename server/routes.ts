@@ -16,8 +16,16 @@ import {
   verifyPaymentSignature, 
   updatePaymentStatus,
   getHotelPayments,
-  checkPaymentStatusWithAPI
+  checkPaymentStatusWithAPI,
+  updatePaymentStatusFromWebhook
 } from "./razorpay";
+import { 
+  getSubscriptionInfo, 
+  checkFeatureAccess, 
+  checkRoomLimit,
+  getExpiryWarning,
+  SUBSCRIPTION_PLANS
+} from "./subscription";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Middleware
@@ -77,7 +85,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const currentRooms = await storage.getRooms(roomData.hotelId);
       const currentRoomCount = currentRooms.length;
 
-      // Check against hotel's enabled room limit
+      // Check subscription room limit first
+      const subRoomCheck = checkRoomLimit(hotel, currentRoomCount);
+      if (!subRoomCheck.allowed) {
+        return res.status(403).json({ 
+          message: subRoomCheck.reason,
+          limit: subRoomCheck.limit,
+          current: subRoomCheck.current
+        });
+      }
+
+      // Then check against hotel's enabled room limit (admin-configurable)
       const enabledRoomsLimit = hotel.enabledRooms || hotel.maxRooms || 50;
       if (currentRoomCount >= enabledRoomsLimit) {
         return res.status(400).json({ 
@@ -591,6 +609,444 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Admin statistics error:", error);
       res.status(500).json({ message: "Failed to fetch admin statistics" });
+    }
+  });
+
+  // ===== Reports & Analytics API =====
+  
+  // Get hotel-specific analytics for hotelier dashboard
+  app.get("/api/reports/analytics", authenticateToken, requireActiveHotel(storage), async (req: any, res) => {
+    try {
+      const hotelId = req.hotel?.id;
+      if (!hotelId) {
+        return res.status(400).json({ message: "Hotel not found" });
+      }
+
+      const rooms = await storage.getRooms(hotelId);
+      const checkIns = await storage.getActiveCheckIns(hotelId);
+      const bookings = await storage.getBookings(hotelId);
+      
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+
+      // Calculate occupancy metrics
+      const totalRooms = rooms.length;
+      const occupiedRooms = rooms.filter(r => r.status === 'occupied').length;
+      const maintenanceRooms = rooms.filter(r => r.status === 'maintenance').length;
+      const cleaningRooms = rooms.filter(r => r.status === 'cleaning').length;
+      const availableRooms = rooms.filter(r => r.status === 'available').length;
+      const occupancyRate = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
+
+      // Calculate revenue metrics
+      const todayRevenue = checkIns
+        .filter(c => {
+          const date = c.checkInDate ? new Date(c.checkInDate) : new Date();
+          return date.toDateString() === now.toDateString();
+        })
+        .reduce((sum, c) => sum + parseFloat(c.totalAmount || "0"), 0);
+
+      const monthlyRevenue = bookings
+        .filter(b => {
+          const date = b.createdAt ? new Date(b.createdAt) : new Date();
+          return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+        })
+        .reduce((sum, b) => sum + parseFloat(b.totalAmount || "0"), 0);
+
+      const yearlyRevenue = bookings
+        .filter(b => {
+          const date = b.createdAt ? new Date(b.createdAt) : new Date();
+          return date.getFullYear() === currentYear;
+        })
+        .reduce((sum, b) => sum + parseFloat(b.totalAmount || "0"), 0);
+
+      // Calculate last 7 days revenue trend
+      const revenueByDay = [];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        const dayStr = date.toDateString();
+        
+        const dayRevenue = bookings
+          .filter(b => {
+            const bookingDate = b.createdAt ? new Date(b.createdAt) : new Date();
+            return bookingDate.toDateString() === dayStr;
+          })
+          .reduce((sum, b) => sum + parseFloat(b.totalAmount || "0"), 0);
+        
+        revenueByDay.push({
+          date: date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+          revenue: dayRevenue
+        });
+      }
+
+      // Room type breakdown
+      const roomTypeStats: Record<string, { count: number; occupied: number; revenue: number }> = {};
+      rooms.forEach(room => {
+        const type = room.type;
+        if (!roomTypeStats[type]) {
+          roomTypeStats[type] = { count: 0, occupied: 0, revenue: 0 };
+        }
+        roomTypeStats[type].count++;
+        if (room.status === 'occupied') {
+          roomTypeStats[type].occupied++;
+          roomTypeStats[type].revenue += parseFloat(room.basePrice || "0");
+        }
+      });
+
+      // Booking source breakdown (for future channel manager integration)
+      const bookingsByStatus = {
+        confirmed: bookings.filter(b => b.status === 'confirmed').length,
+        pending: bookings.filter(b => b.status === 'pending').length,
+        checked_in: bookings.filter(b => b.status === 'checked_in').length,
+        completed: bookings.filter(b => b.status === 'completed').length,
+        cancelled: bookings.filter(b => b.status === 'cancelled').length,
+      };
+
+      // GST summary for current month
+      const monthlyCheckIns = checkIns.filter(c => {
+        const date = c.checkInDate ? new Date(c.checkInDate) : new Date();
+        return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+      });
+
+      const gstSummary = {
+        totalBillings: monthlyCheckIns.length,
+        totalAmount: monthlyCheckIns.reduce((sum, c) => sum + parseFloat(c.totalAmount || "0"), 0),
+        cgstCollected: monthlyCheckIns.reduce((sum, c) => {
+          const amount = parseFloat(c.totalAmount || "0");
+          const cgstRate = parseFloat(c.cgstRate || "6") / 100;
+          return sum + (amount * cgstRate / (1 + cgstRate * 2));
+        }, 0),
+        sgstCollected: monthlyCheckIns.reduce((sum, c) => {
+          const amount = parseFloat(c.totalAmount || "0");
+          const sgstRate = parseFloat(c.sgstRate || "6") / 100;
+          return sum + (amount * sgstRate / (1 + sgstRate * 2));
+        }, 0),
+      };
+
+      res.json({
+        occupancy: {
+          total: totalRooms,
+          occupied: occupiedRooms,
+          available: availableRooms,
+          maintenance: maintenanceRooms,
+          cleaning: cleaningRooms,
+          rate: occupancyRate
+        },
+        revenue: {
+          today: todayRevenue.toFixed(2),
+          monthly: monthlyRevenue.toFixed(2),
+          yearly: yearlyRevenue.toFixed(2),
+          trend: revenueByDay
+        },
+        roomTypes: roomTypeStats,
+        bookings: {
+          total: bookings.length,
+          byStatus: bookingsByStatus,
+          activeCheckIns: checkIns.length
+        },
+        gst: gstSummary
+      });
+    } catch (error) {
+      console.error("Analytics error:", error);
+      res.status(500).json({ message: "Failed to fetch analytics" });
+    }
+  });
+
+  // Generate guest register report data
+  app.get("/api/reports/guest-register", authenticateToken, requireActiveHotel(storage), async (req: any, res) => {
+    try {
+      const hotelId = req.hotel?.id;
+      const { from, to } = req.query;
+
+      if (!hotelId) {
+        return res.status(400).json({ message: "Hotel not found" });
+      }
+
+      const checkIns = await storage.getCheckInHistory(hotelId);
+      
+      // Filter by date range if provided
+      let filteredCheckIns = checkIns;
+      if (from || to) {
+        const fromDate = from ? new Date(from as string) : new Date(0);
+        const toDate = to ? new Date(to as string) : new Date();
+        toDate.setHours(23, 59, 59, 999);
+        
+        filteredCheckIns = checkIns.filter(checkIn => {
+          const checkInDate = checkIn.checkInDate ? new Date(checkIn.checkInDate) : new Date();
+          return checkInDate >= fromDate && checkInDate <= toDate;
+        });
+      }
+
+      // Get guest details for each check-in
+      const guestRegister = await Promise.all(
+        filteredCheckIns.map(async (checkIn) => {
+          const guest = await storage.getGuest(checkIn.guestId);
+          const room = await storage.getRoom(checkIn.roomId);
+          
+          return {
+            serialNo: checkIn.id,
+            guestName: guest?.name || 'Unknown',
+            phone: guest?.phone || '',
+            email: guest?.email || '',
+            idType: guest?.idType || '',
+            idNumber: guest?.idNumber || '',
+            nationality: guest?.nationality || 'Indian',
+            roomNumber: room?.roomNumber || '',
+            roomType: room?.type || '',
+            checkInDate: checkIn.checkInDate,
+            checkOutDate: checkIn.checkOutDate,
+            purpose: guest?.purpose || '',
+            guests: guest?.numberOfGuests || 1,
+            address: guest?.address || '',
+            totalAmount: checkIn.totalAmount || '0',
+            status: checkIn.status || 'active'
+          };
+        })
+      );
+
+      res.json({
+        report: 'Guest Register',
+        dateRange: { from: from || 'All time', to: to || 'Present' },
+        totalRecords: guestRegister.length,
+        data: guestRegister
+      });
+    } catch (error) {
+      console.error("Guest register report error:", error);
+      res.status(500).json({ message: "Failed to generate guest register" });
+    }
+  });
+
+  // Generate occupancy report data
+  app.get("/api/reports/occupancy", authenticateToken, requireActiveHotel(storage), async (req: any, res) => {
+    try {
+      const hotelId = req.hotel?.id;
+      const { period } = req.query;
+
+      if (!hotelId) {
+        return res.status(400).json({ message: "Hotel not found" });
+      }
+
+      const rooms = await storage.getRooms(hotelId);
+      const bookings = await storage.getBookings(hotelId);
+      const now = new Date();
+
+      // Calculate period range
+      let startDate = new Date();
+      let endDate = new Date();
+      
+      switch (period) {
+        case 'last-month':
+          startDate.setMonth(startDate.getMonth() - 1, 1);
+          endDate = new Date(now.getFullYear(), now.getMonth(), 0);
+          break;
+        case 'this-month':
+        default:
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          endDate = now;
+          break;
+      }
+
+      // Daily occupancy for the period
+      const dailyOccupancy = [];
+      const currentDate = new Date(startDate);
+      const totalRooms = rooms.length;
+
+      while (currentDate <= endDate) {
+        const dateStr = currentDate.toDateString();
+        
+        // Count rooms occupied on this date
+        const occupiedOnDate = bookings.filter(b => {
+          const checkIn = b.checkInDate ? new Date(b.checkInDate) : null;
+          const checkOut = b.checkOutDate ? new Date(b.checkOutDate) : null;
+          const status = b.status;
+          
+          if (!checkIn || !checkOut) return false;
+          if (status === 'cancelled') return false;
+          
+          return currentDate >= checkIn && currentDate < checkOut;
+        }).length;
+
+        dailyOccupancy.push({
+          date: currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          fullDate: currentDate.toISOString().split('T')[0],
+          occupied: Math.min(occupiedOnDate, totalRooms),
+          available: Math.max(totalRooms - occupiedOnDate, 0),
+          rate: totalRooms > 0 ? Math.round((occupiedOnDate / totalRooms) * 100) : 0
+        });
+
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+
+      // Average occupancy for period
+      const avgOccupancy = dailyOccupancy.length > 0
+        ? Math.round(dailyOccupancy.reduce((sum, d) => sum + d.rate, 0) / dailyOccupancy.length)
+        : 0;
+
+      // Room type occupancy breakdown
+      const roomTypeOccupancy: Record<string, { total: number; occupied: number; rate: number }> = {};
+      rooms.forEach(room => {
+        if (!roomTypeOccupancy[room.type]) {
+          roomTypeOccupancy[room.type] = { total: 0, occupied: 0, rate: 0 };
+        }
+        roomTypeOccupancy[room.type].total++;
+        if (room.status === 'occupied') {
+          roomTypeOccupancy[room.type].occupied++;
+        }
+      });
+
+      Object.keys(roomTypeOccupancy).forEach(type => {
+        const data = roomTypeOccupancy[type];
+        data.rate = data.total > 0 ? Math.round((data.occupied / data.total) * 100) : 0;
+      });
+
+      res.json({
+        report: 'Occupancy Report',
+        period: period || 'this-month',
+        dateRange: {
+          from: startDate.toISOString().split('T')[0],
+          to: endDate.toISOString().split('T')[0]
+        },
+        summary: {
+          totalRooms,
+          averageOccupancy: avgOccupancy,
+          peakOccupancy: Math.max(...dailyOccupancy.map(d => d.rate)),
+          lowestOccupancy: Math.min(...dailyOccupancy.map(d => d.rate))
+        },
+        dailyData: dailyOccupancy,
+        roomTypeBreakdown: roomTypeOccupancy
+      });
+    } catch (error) {
+      console.error("Occupancy report error:", error);
+      res.status(500).json({ message: "Failed to generate occupancy report" });
+    }
+  });
+
+  // Generate revenue report data
+  app.get("/api/reports/revenue", authenticateToken, requireActiveHotel(storage), async (req: any, res) => {
+    try {
+      const hotelId = req.hotel?.id;
+      const { period } = req.query;
+
+      if (!hotelId) {
+        return res.status(400).json({ message: "Hotel not found" });
+      }
+
+      const bookings = await storage.getBookings(hotelId);
+      const checkIns = await storage.getCheckInHistory(hotelId);
+      const now = new Date();
+
+      // Calculate period range
+      let startDate = new Date();
+      let days = 7;
+      
+      switch (period) {
+        case 'this-month':
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          days = now.getDate();
+          break;
+        case 'this-quarter':
+          const quarter = Math.floor(now.getMonth() / 3);
+          startDate = new Date(now.getFullYear(), quarter * 3, 1);
+          days = Math.ceil((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+          break;
+        case 'this-week':
+        default:
+          startDate = new Date(now);
+          startDate.setDate(startDate.getDate() - 6);
+          days = 7;
+          break;
+      }
+
+      // Daily revenue
+      const dailyRevenue = [];
+      for (let i = 0; i < days; i++) {
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + i);
+        const dateStr = date.toDateString();
+        
+        const dayRevenue = bookings
+          .filter(b => {
+            const bookingDate = b.createdAt ? new Date(b.createdAt) : new Date();
+            return bookingDate.toDateString() === dateStr;
+          })
+          .reduce((sum, b) => sum + parseFloat(b.totalAmount || "0"), 0);
+
+        dailyRevenue.push({
+          date: date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+          fullDate: date.toISOString().split('T')[0],
+          revenue: dayRevenue
+        });
+      }
+
+      // Total revenue for period
+      const totalRevenue = dailyRevenue.reduce((sum, d) => sum + d.revenue, 0);
+      const avgDailyRevenue = days > 0 ? totalRevenue / days : 0;
+
+      // Revenue by payment method
+      const revenueByPayment: Record<string, number> = {
+        cash: 0,
+        card: 0,
+        upi: 0,
+        online: 0,
+        other: 0
+      };
+
+      checkIns.forEach(checkIn => {
+        const method = checkIn.paymentMethod?.toLowerCase() || 'cash';
+        const amount = parseFloat(checkIn.totalAmount || "0");
+        if (revenueByPayment[method] !== undefined) {
+          revenueByPayment[method] += amount;
+        } else {
+          revenueByPayment.other += amount;
+        }
+      });
+
+      // GST breakdown
+      const periodCheckIns = checkIns.filter(c => {
+        const date = c.checkInDate ? new Date(c.checkInDate) : new Date();
+        return date >= startDate && date <= now;
+      });
+
+      const gstBreakdown = {
+        grossRevenue: totalRevenue,
+        cgst: periodCheckIns.reduce((sum, c) => {
+          const amount = parseFloat(c.totalAmount || "0");
+          const cgstRate = parseFloat(c.cgstRate || "6") / 100;
+          return sum + (amount * cgstRate / (1 + cgstRate * 2));
+        }, 0),
+        sgst: periodCheckIns.reduce((sum, c) => {
+          const amount = parseFloat(c.totalAmount || "0");
+          const sgstRate = parseFloat(c.sgstRate || "6") / 100;
+          return sum + (amount * sgstRate / (1 + sgstRate * 2));
+        }, 0),
+        netRevenue: 0
+      };
+      gstBreakdown.netRevenue = totalRevenue - gstBreakdown.cgst - gstBreakdown.sgst;
+
+      res.json({
+        report: 'Revenue Report',
+        period: period || 'this-week',
+        dateRange: {
+          from: startDate.toISOString().split('T')[0],
+          to: now.toISOString().split('T')[0]
+        },
+        summary: {
+          totalRevenue: totalRevenue.toFixed(2),
+          avgDailyRevenue: avgDailyRevenue.toFixed(2),
+          totalBookings: bookings.filter(b => {
+            const date = b.createdAt ? new Date(b.createdAt) : new Date();
+            return date >= startDate && date <= now;
+          }).length,
+          peakRevenue: Math.max(...dailyRevenue.map(d => d.revenue)).toFixed(2)
+        },
+        dailyData: dailyRevenue,
+        paymentBreakdown: revenueByPayment,
+        gst: gstBreakdown
+      });
+    } catch (error) {
+      console.error("Revenue report error:", error);
+      res.status(500).json({ message: "Failed to generate revenue report" });
     }
   });
 
@@ -1162,6 +1618,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Payment history error:", error);
       res.status(500).json({ message: "Failed to fetch payment history" });
     }
+  });
+
+  // ===== Subscription Entitlements API =====
+  
+  // Get subscription info for current user's hotel
+  app.get("/api/subscription", authenticateToken, async (req: any, res) => {
+    try {
+      const hotels = await storage.getHotels();
+      const userHotel = hotels.find(hotel => hotel.ownerId === req.user.id);
+      
+      if (!userHotel) {
+        return res.json({
+          status: "no_hotel",
+          message: "No hotel associated with this account",
+          plans: SUBSCRIPTION_PLANS
+        });
+      }
+
+      const subInfo = getSubscriptionInfo(userHotel);
+      const warning = getExpiryWarning(userHotel);
+      
+      res.json({
+        status: subInfo.status,
+        plan: subInfo.plan,
+        planKey: subInfo.planKey,
+        daysRemaining: subInfo.daysRemaining,
+        isActive: subInfo.isActive,
+        roomLimit: subInfo.roomLimit,
+        staffLimit: subInfo.staffLimit,
+        features: subInfo.plan.features,
+        warning,
+        subscriptionEndDate: userHotel.subscriptionEndDate,
+        plans: SUBSCRIPTION_PLANS
+      });
+    } catch (error) {
+      console.error("Subscription info error:", error);
+      res.status(500).json({ message: "Failed to fetch subscription info" });
+    }
+  });
+
+  // Check if a specific feature is available
+  app.get("/api/subscription/check-feature/:feature", authenticateToken, async (req: any, res) => {
+    try {
+      const { feature } = req.params;
+      const hotels = await storage.getHotels();
+      const userHotel = hotels.find(hotel => hotel.ownerId === req.user.id);
+      
+      const access = checkFeatureAccess(userHotel || null, feature);
+      res.json(access);
+    } catch (error) {
+      console.error("Feature check error:", error);
+      res.status(500).json({ message: "Failed to check feature access" });
+    }
+  });
+
+  // Check room limit
+  app.get("/api/subscription/check-room-limit", authenticateToken, async (req: any, res) => {
+    try {
+      const hotels = await storage.getHotels();
+      const userHotel = hotels.find(hotel => hotel.ownerId === req.user.id);
+      
+      if (!userHotel) {
+        return res.json({ allowed: false, limit: 0, current: 0, reason: "No hotel found" });
+      }
+
+      const rooms = await storage.getRooms(userHotel.id);
+      const result = checkRoomLimit(userHotel, rooms.length);
+      res.json(result);
+    } catch (error) {
+      console.error("Room limit check error:", error);
+      res.status(500).json({ message: "Failed to check room limit" });
+    }
+  });
+
+  // Get available subscription plans
+  app.get("/api/subscription/plans", (req, res) => {
+    res.json(SUBSCRIPTION_PLANS);
   });
 
   // Razorpay config endpoint (public key)
