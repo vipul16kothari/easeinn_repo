@@ -28,6 +28,7 @@ import SignupWithPayment from "./pages/signup-with-payment";
 import SignupPlaces from "./pages/signup-places";
 import PropertyDiscovery from "./pages/property-discovery";
 import SuperAdminDashboard from "./pages/superadmin-dashboard";
+import GuestCheckIn from "./pages/guest-checkin";
 import Header from "./components/header";
 
 function Router() {
@@ -41,6 +42,7 @@ function Router() {
       <Route path="/signup/plans" component={SignupPlaces} />
       <Route path="/signup-old" component={SignupWithPayment} />
       <Route path="/property-discovery" component={PropertyDiscovery} />
+      <Route path="/checkin/:slug" component={GuestCheckIn} />
       
       {/* Authenticated routes with header */}
       <Route path="/dashboard">
