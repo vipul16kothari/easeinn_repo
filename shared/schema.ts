@@ -73,6 +73,19 @@ export const hotels = pgTable("hotels", {
   // Razorpay integration fields
   razorpayCustomerId: varchar("razorpay_customer_id", { length: 100 }),
   razorpaySubscriptionId: varchar("razorpay_subscription_id", { length: 100 }),
+  // Google Places API fields
+  googlePlaceId: varchar("google_place_id", { length: 255 }),
+  googleRating: decimal("google_rating", { precision: 2, scale: 1 }),
+  googleReviewCount: integer("google_review_count"),
+  website: varchar("website", { length: 500 }),
+  latitude: decimal("latitude", { precision: 10, scale: 7 }),
+  longitude: decimal("longitude", { precision: 10, scale: 7 }),
+  city: varchar("city", { length: 100 }),
+  state: varchar("state", { length: 100 }),
+  country: varchar("country", { length: 100 }),
+  postalCode: varchar("postal_code", { length: 20 }),
+  placeTypes: json("place_types").$type<string[]>(),
+  photoReferences: json("photo_references").$type<string[]>(),
   // Hotel Configuration Options
   maxRooms: integer("max_rooms").default(50),
   enabledRooms: integer("enabled_rooms").default(10),

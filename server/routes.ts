@@ -1006,6 +1006,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Google Places config endpoint
+  app.get("/api/places/config", (req, res) => {
+    try {
+      const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ message: "Google Places API key not configured" });
+      }
+      res.json({ apiKey });
+    } catch (error) {
+      console.error("Places config error:", error);
+      res.status(500).json({ message: "Failed to get Places configuration" });
+    }
+  });
+
+  // Registration with Google Places data endpoint
+  app.post("/api/register-with-places", async (req, res) => {
+    try {
+      const { plan, placeDetails, owner } = req.body;
+      
+      if (!plan || !placeDetails || !owner) {
+        return res.status(400).json({ message: "Missing required registration data" });
+      }
+
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(owner.email);
+      if (existingUser) {
+        return res.status(400).json({ 
+          message: "A user with this email already exists. Please sign in instead.",
+          errorCode: "USER_EXISTS"
+        });
+      }
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(owner.password, 10);
+
+      // Create user first
+      const userData = {
+        email: owner.email,
+        password: hashedPassword,
+        role: "hotelier" as const,
+        firstName: placeDetails.name?.split(' ')[0] || 'Hotel',
+        lastName: 'Owner'
+      };
+
+      const user = await storage.createUser(userData);
+
+      // Create hotel with Google Places data
+      const hotelData = {
+        name: placeDetails.name,
+        address: placeDetails.address,
+        phone: placeDetails.phone || owner.phone || '',
+        email: owner.email,
+        ownerId: user.id,
+        subscriptionPlan: plan.name,
+        maxRooms: plan.maxRooms || 50,
+        enabledRooms: Math.min(plan.maxRooms || 50, 10),
+        googlePlaceId: placeDetails.placeId,
+        googleRating: placeDetails.rating?.toString(),
+        googleReviewCount: placeDetails.reviewCount,
+        website: placeDetails.website,
+        latitude: placeDetails.latitude?.toString(),
+        longitude: placeDetails.longitude?.toString(),
+        city: placeDetails.city,
+        state: placeDetails.state,
+        country: placeDetails.country,
+        postalCode: placeDetails.postalCode,
+        placeTypes: placeDetails.types,
+        photoReferences: placeDetails.photoReferences
+      };
+
+      const newHotel = await storage.createHotel(hotelData);
+
+      // Create payment order
+      const order = await createSubscriptionOrder(newHotel.id, plan.price, plan.name);
+
+      res.status(201).json({
+        message: "Registration successful, proceed with payment",
+        user: { id: user.id, email: user.email, role: user.role },
+        hotel: { id: newHotel.id, name: newHotel.name },
+        order
+      });
+
+    } catch (error: any) {
+      console.error("Registration with places error:", error);
+      res.status(500).json({ message: error.message || "Failed to process registration" });
+    }
+  });
+
   // Registration with payment endpoint
   app.post("/api/register-with-payment", async (req, res) => {
     try {
