@@ -2,493 +2,598 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Hotel, Users, Receipt, BarChart3, Shield, Clock, Star, ArrowRight, CheckCircle, Sparkles, Zap, Globe, Calendar, Play, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { 
+  Hotel, 
+  Users, 
+  Receipt, 
+  BarChart3, 
+  ArrowRight, 
+  CheckCircle, 
+  Zap, 
+  Calendar,
+  MessageSquare,
+  TrendingUp,
+  CreditCard,
+  Gift,
+  Smartphone,
+  Mail,
+  Phone,
+  MapPin
+} from "lucide-react";
+import { SiFacebook, SiInstagram, SiLinkedin } from "react-icons/si";
 
 export default function Landing() {
-  const [isDemoOpen, setIsDemoOpen] = useState(false);
+  const [activeFeature, setActiveFeature] = useState("checkin");
+  const [email, setEmail] = useState("");
 
-  // Fetch current pricing from admin settings
-  const { data: pricingConfig } = useQuery({
+  const { data: pricingConfig } = useQuery<{ hotelierPrice?: number; enterprisePrice?: number }>({
     queryKey: ["/api/admin/pricing-config"],
     retry: false,
   });
 
-  const hotelierPrice = pricingConfig?.hotelierPrice || 2999;
-  const enterprisePrice = pricingConfig?.enterprisePrice || 9999;
+  const hotelierPrice = pricingConfig?.hotelierPrice || 1999;
 
   useEffect(() => {
-    document.title = "EaseInn - Comprehensive Hotel Management Platform | Multi-Property PMS";
+    document.title = "EaseInn - Guest-First Hotel Management Platform";
     
     const metaDescription = document.querySelector('meta[name="description"]');
     if (metaDescription) {
-      metaDescription.setAttribute('content', 'Transform your hotel operations with EaseInn\'s AI-powered management platform. Features multi-property support, real-time inventory, GST-compliant invoicing, and integrated Razorpay payments. Trusted by 500+ hotels worldwide.');
-    }
-
-    const ogTitle = document.querySelector('meta[property="og:title"]');
-    if (ogTitle) {
-      ogTitle.setAttribute('content', 'EaseInn - Transform Hotel Operations with AI-Powered Management');
-    }
-
-    const ogDescription = document.querySelector('meta[property="og:description"]');
-    if (ogDescription) {
-      ogDescription.setAttribute('content', 'Comprehensive B2B hotel management platform with multi-property support, real-time inventory tracking, automated check-ins, and integrated payment solutions.');
+      metaDescription.setAttribute('content', 'Transform your hotel operations with EaseInn. From bookings to post-stay - everything simplified. Trusted by 500+ hotels across India.');
     }
   }, []);
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-blue-50 to-cyan-50 relative overflow-hidden">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-4 -right-4 w-72 h-72 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"></div>
-        <div className="absolute -bottom-8 -left-4 w-72 h-72 bg-gradient-to-br from-yellow-400 to-red-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-blue-400 to-indigo-400 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-pulse delay-500"></div>
-      </div>
 
-      {/* Header */}
-      <header className="relative border-b bg-white/70 backdrop-blur-md sticky top-0 z-50 shadow-sm">
+  const features = [
+    { id: "checkin", icon: Users, label: "Check-in", color: "text-purple-600 bg-purple-50" },
+    { id: "guest", icon: Smartphone, label: "Guest App", color: "text-gray-600 bg-gray-50" },
+    { id: "communication", icon: MessageSquare, label: "Guest Communication", color: "text-gray-600 bg-gray-50" },
+    { id: "analytics", icon: BarChart3, label: "Business Intelligence", color: "text-gray-600 bg-gray-50" },
+    { id: "pricing", icon: TrendingUp, label: "Dynamic Pricing", color: "text-gray-600 bg-gray-50" },
+    { id: "ledger", icon: Receipt, label: "Ledger", color: "text-gray-600 bg-gray-50" },
+    { id: "billing", icon: CreditCard, label: "Billing", color: "text-gray-600 bg-gray-50" },
+    { id: "upselling", icon: Gift, label: "Upselling", color: "text-gray-600 bg-gray-50" },
+  ];
+
+  const featureContent: Record<string, { title: string; description: string; points: string[] }> = {
+    checkin: {
+      title: "Fastest Check-in",
+      description: "Streamline your check-in process & ID collection",
+      points: ["One Click Web Check-in", "AI Enabled Hotel Check-in", "ID Collection"]
+    },
+    guest: {
+      title: "Guest App",
+      description: "Give guests a seamless digital experience",
+      points: ["Digital room keys", "In-app requests", "Real-time updates"]
+    },
+    communication: {
+      title: "Guest Communication",
+      description: "Stay connected with your guests effortlessly",
+      points: ["Automated messages", "WhatsApp integration", "Email campaigns"]
+    },
+    analytics: {
+      title: "Business Intelligence",
+      description: "Make data-driven decisions for your property",
+      points: ["Occupancy reports", "Revenue analytics", "Guest insights"]
+    },
+    pricing: {
+      title: "Dynamic Pricing",
+      description: "Optimize your room rates automatically",
+      points: ["AI-powered pricing", "Demand forecasting", "Competitor analysis"]
+    },
+    ledger: {
+      title: "Smart Ledger",
+      description: "Track all your financial transactions",
+      points: ["Real-time tracking", "GST compliant", "Automated reconciliation"]
+    },
+    billing: {
+      title: "Smart Billing",
+      description: "Generate invoices instantly",
+      points: ["Auto invoicing", "Multiple payment modes", "Tax calculations"]
+    },
+    upselling: {
+      title: "Easy Upselling",
+      description: "Boost your revenue with smart recommendations",
+      points: ["Room upgrades", "Add-on services", "Package deals"]
+    }
+  };
+
+  const stats = [
+    { value: "80%", label: "Faster Check-ins", description: "Web Check-ins & Hotel Check-ins" },
+    { value: "50%", label: "Increase in Revenue", description: "Easy Upselling & Cross-selling" },
+    { value: "90%", label: "Reduction in Guest Queries", description: "Fewer questions, Happier stays" }
+  ];
+
+  const painPoints = [
+    { icon: Users, title: "Outdated Check-ins & Id collection" },
+    { icon: MessageSquare, title: "80% guest queries are repetitive" },
+    { icon: Hotel, title: "Outdated legacy platforms, Whatsapp, Paper" },
+    { icon: Gift, title: "No digital experience to up-sell" }
+  ];
+
+  return (
+    <div className="min-h-screen bg-white">
+      {/* Glassmorphism Header */}
+      <header className="fixed top-0 left-0 right-0 z-50 glass border-b border-purple-100/50">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center space-x-3">
-            <div className="relative">
-              <Hotel className="h-8 w-8 text-blue-600" />
-              <Sparkles className="h-4 w-4 text-yellow-400 absolute -top-1 -right-1 animate-pulse" />
+          <div className="flex items-center space-x-2">
+            <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-purple-400 rounded-xl flex items-center justify-center">
+              <Hotel className="h-6 w-6 text-white" />
             </div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">EaseInn</h1>
+            <span className="text-2xl font-bold text-gray-900">EaseInn</span>
           </div>
+          
           <nav className="hidden md:flex items-center space-x-8">
-            <a href="#features" className="text-gray-600 hover:text-blue-600 transition-colors font-medium">Features</a>
-            <a href="#pricing" className="text-gray-600 hover:text-blue-600 transition-colors font-medium">Pricing</a>
-            <a href="#contact" className="text-gray-600 hover:text-blue-600 transition-colors font-medium">Contact</a>
+            <a href="#features" className="text-gray-600 hover:text-purple-600 transition-colors font-medium" data-testid="nav-features">
+              Features
+            </a>
+            <a href="#pricing" className="text-gray-600 hover:text-purple-600 transition-colors font-medium" data-testid="nav-pricing">
+              Pricing
+            </a>
+            <Link href="/contact">
+              <span className="text-gray-600 hover:text-purple-600 transition-colors font-medium cursor-pointer" data-testid="nav-contact">
+                Contact Us
+              </span>
+            </Link>
           </nav>
-          <div className="flex items-center space-x-3">
-            <Link href="/login">
-              <Button variant="ghost" className="text-gray-700 hover:text-blue-600 font-medium" data-testid="button-login">
-                Sign In
-              </Button>
-            </Link>
-            <Link href="/signup">
-              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200" data-testid="button-register">
-                Get Started <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-          </div>
+          
+          <Link href="/login">
+            <Button 
+              className="bg-purple-600 hover:bg-purple-700 text-white rounded-full px-6 shadow-lg hover:shadow-xl transition-all"
+              data-testid="button-get-started"
+            >
+              Let's Talk!
+            </Button>
+          </Link>
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="relative py-20 lg:py-32">
+      <section className="pt-32 pb-20 bg-gradient-to-b from-purple-50/50 to-white">
         <div className="container mx-auto px-4">
           <div className="text-center max-w-4xl mx-auto">
-            <Badge className="mb-6 bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 border-blue-200 hover:bg-gradient-to-r hover:from-blue-200 hover:to-purple-200">
-              <Star className="w-4 h-4 mr-2" />
-              Trusted by 500+ Hotels Worldwide
-            </Badge>
-            
-            <h1 className="text-5xl lg:text-7xl font-bold mb-8 leading-tight">
-              <span className="bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent">
-                Hotel Management
-              </span>
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-gray-900 mb-6 leading-tight">
+              Guest-First
               <br />
-              <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-                Reimagined
-              </span>
+              <span className="text-gradient-purple">Hotel Manager</span>
             </h1>
             
-            <p className="text-xl lg:text-2xl text-gray-600 mb-12 max-w-3xl mx-auto leading-relaxed">
-              Transform your hotel operations with our AI-powered platform. 
-              <span className="text-blue-600 font-semibold">Automate check-ins</span>, 
-              <span className="text-purple-600 font-semibold"> streamline bookings</span>, and 
-              <span className="text-pink-600 font-semibold"> boost revenue</span> effortlessly.
+            <p className="text-xl text-gray-500 mb-10 uppercase tracking-wider">
+              From Bookings to Post Stay - Everything Simplified
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-              <Link href="/register?trial=true">
-                <Button size="lg" className="px-8 py-4 text-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-2xl hover:shadow-blue-500/25 transform hover:scale-105 transition-all duration-300" data-testid="button-start-trial">
-                  <Zap className="mr-2 h-5 w-5" />
-                  Start Free Trial
-                </Button>
-              </Link>
-              <Dialog open={isDemoOpen} onOpenChange={setIsDemoOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="lg" className="px-8 py-4 text-lg border-gray-300 hover:border-blue-300 hover:bg-blue-50 transition-all duration-300" data-testid="button-view-demo">
-                    <Play className="mr-2 h-5 w-5" />
-                    Watch Demo
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-4xl w-full max-h-[80vh] p-0">
-                  <DialogHeader className="p-6 pb-0">
-                    <DialogTitle className="text-xl font-semibold">EaseInn Platform Demo</DialogTitle>
-                  </DialogHeader>
-                  <div className="relative w-full h-0 pb-[56.25%]"> {/* 16:9 aspect ratio */}
-                    <iframe
-                      src="https://www.youtube.com/embed/2B8gABDfh7I?autoplay=1&controls=0&disablekb=1&fs=0&modestbranding=1&rel=0&showinfo=0"
-                      title="EaseInn Platform Demo"
-                      className="absolute top-0 left-0 w-full h-full"
-                      frameBorder="0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    />
+            <Link href="/login">
+              <Button 
+                size="lg" 
+                className="bg-purple-600 hover:bg-purple-700 text-white text-lg px-10 py-6 rounded-full shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all"
+                data-testid="button-book-demo"
+              >
+                Book Demo <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </Link>
+          </div>
+
+          {/* Product Mockup */}
+          <div className="mt-16 max-w-5xl mx-auto">
+            <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
+              <div className="flex">
+                {/* Sidebar */}
+                <div className="w-64 bg-gray-50 border-r border-gray-100 p-4 hidden md:block">
+                  <div className="flex items-center space-x-2 mb-6">
+                    <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center">
+                      <Hotel className="h-4 w-4 text-white" />
+                    </div>
+                    <span className="font-semibold text-gray-900">EASEINN</span>
                   </div>
-                  <div className="p-6 pt-4 text-center text-sm text-gray-600">
-                    Experience EaseInn's comprehensive hotel management features
+                  
+                  <nav className="space-y-1">
+                    <div className="flex items-center space-x-3 px-3 py-2 bg-purple-100 rounded-lg text-purple-700">
+                      <Calendar className="h-4 w-4" />
+                      <span className="text-sm font-medium">Room View</span>
+                    </div>
+                    <div className="flex items-center space-x-3 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+                      <Users className="h-4 w-4" />
+                      <span className="text-sm">All Checkins</span>
+                    </div>
+                    <div className="flex items-center space-x-3 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+                      <Gift className="h-4 w-4" />
+                      <span className="text-sm">Food</span>
+                    </div>
+                    <div className="flex items-center space-x-3 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+                      <Receipt className="h-4 w-4" />
+                      <span className="text-sm">Ledger</span>
+                    </div>
+                  </nav>
+                </div>
+
+                {/* Main Content */}
+                <div className="flex-1 p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900">Room View</h3>
+                    <div className="flex items-center space-x-4">
+                      <div className="flex items-center space-x-2 bg-orange-50 px-3 py-1 rounded-lg">
+                        <span className="text-orange-600 font-medium text-sm">Food Orders</span>
+                        <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-sm font-bold">20</span>
+                      </div>
+                      <div className="flex items-center space-x-2 bg-purple-50 px-3 py-1 rounded-lg">
+                        <span className="text-purple-600 font-medium text-sm">App Requests</span>
+                        <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-sm font-bold">05</span>
+                      </div>
+                    </div>
                   </div>
-                </DialogContent>
-              </Dialog>
+
+                  {/* Room Status Tabs */}
+                  <div className="flex flex-wrap gap-2 mb-6">
+                    <Badge className="bg-gray-100 text-gray-700 hover:bg-gray-200">All</Badge>
+                    <Badge className="bg-green-100 text-green-700">Available(23)</Badge>
+                    <Badge className="bg-red-100 text-red-700">Occupied(5)</Badge>
+                    <Badge className="bg-blue-100 text-blue-700">Reserved(8)</Badge>
+                    <Badge className="bg-orange-100 text-orange-700">Checkout Due(5)</Badge>
+                    <Badge className="bg-purple-100 text-purple-700">Housekeeping(0)</Badge>
+                    <Badge className="bg-teal-100 text-teal-700">Groups(3)</Badge>
+                  </div>
+
+                  {/* Room Grid */}
+                  <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
+                    {[
+                      { num: "201", name: "Vishal", status: "occupied" },
+                      { num: "202", name: "Vijyant", status: "occupied" },
+                      { num: "203", name: "-", status: "available" },
+                      { num: "204", name: "Rishu", status: "occupied" },
+                      { num: "205", name: "-", status: "available" },
+                      { num: "206", name: "Akshay", status: "occupied" },
+                      { num: "207", name: "-", status: "available" },
+                      { num: "208", name: "-", status: "available" },
+                      { num: "301", name: "Rajesh", status: "reserved" },
+                      { num: "302", name: "Manthan", status: "occupied" },
+                      { num: "303", name: "Sumit", status: "occupied" },
+                      { num: "304", name: "-", status: "available" },
+                      { num: "305", name: "Suraksha", status: "occupied" },
+                      { num: "306", name: "-", status: "available" },
+                      { num: "307", name: "Kanchan", status: "occupied" },
+                      { num: "308", name: "-", status: "available" },
+                    ].map((room) => (
+                      <div 
+                        key={room.num}
+                        className={`p-3 rounded-lg text-center ${
+                          room.status === "occupied" ? "bg-red-50 border-red-200" :
+                          room.status === "reserved" ? "bg-blue-50 border-blue-200" :
+                          "bg-green-50 border-green-200"
+                        } border`}
+                      >
+                        <div className="font-bold text-gray-900">{room.num}</div>
+                        <div className="text-xs text-gray-500 truncate">{room.name}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
-            
-            <div className="flex flex-wrap justify-center items-center gap-8 text-sm text-gray-500">
-              <div className="flex items-center">
-                <CheckCircle className="w-5 h-5 text-green-500 mr-2" />
-                14-day free trial
+          </div>
+        </div>
+      </section>
+
+      {/* Pain Points Section */}
+      <section className="py-20 bg-gradient-to-b from-white to-purple-50/30">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-4">
+            Frontdesk loses upto 80 hours a week on repetitive tasks
+          </h2>
+          
+          <div className="text-center mb-16">
+            <Badge className="bg-purple-600 text-white px-6 py-2 text-sm">
+              One Person. Everyone's Expectations
+            </Badge>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
+            {painPoints.map((point, idx) => (
+              <div key={idx} className="text-center p-6">
+                <div className="w-16 h-16 mx-auto mb-4 bg-purple-50 rounded-2xl flex items-center justify-center">
+                  <point.icon className="h-8 w-8 text-purple-600" />
+                </div>
+                <p className="text-gray-600 text-sm">{point.title}</p>
               </div>
-              <div className="flex items-center">
-                <CheckCircle className="w-5 h-5 text-green-500 mr-2" />
-                No credit card required
-              </div>
-              <div className="flex items-center">
-                <CheckCircle className="w-5 h-5 text-green-500 mr-2" />
-                Setup in 5 minutes
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-20 bg-white relative">
+      <section id="features" className="py-20 bg-white">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <Badge className="mb-4 bg-blue-50 text-blue-700 border-blue-200">
-              <Sparkles className="w-4 h-4 mr-2" />
-              Powerful Features
-            </Badge>
-            <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
-              Everything You Need to
-              <span className="block bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Run Your Hotel
-              </span>
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              From guest management to revenue analytics, we've built the complete toolkit for modern hoteliers.
-            </p>
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-12">
+            One Platform to solve all your Needs
+          </h2>
+
+          {/* Feature Tabs */}
+          <div className="flex flex-wrap justify-center gap-3 mb-12">
+            {features.map((feature) => (
+              <button
+                key={feature.id}
+                onClick={() => setActiveFeature(feature.id)}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-full border transition-all ${
+                  activeFeature === feature.id
+                    ? "bg-purple-50 border-purple-200 text-purple-700"
+                    : "bg-white border-gray-200 text-gray-600 hover:border-purple-200"
+                }`}
+                data-testid={`tab-${feature.id}`}
+              >
+                <feature.icon className="h-4 w-4" />
+                <span className="text-sm font-medium">{feature.label}</span>
+              </button>
+            ))}
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg hover:-translate-y-2 bg-gradient-to-br from-blue-50 to-indigo-50" data-testid="card-guest-management">
-              <CardHeader className="text-center pb-4">
-                <div className="mx-auto mb-4 w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                  <Users className="h-8 w-8 text-white" />
-                </div>
-                <CardTitle className="text-xl">Smart Guest Management</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600 leading-relaxed">
-                  Complete guest profiles with automated check-in/out workflows, digital signatures, and comprehensive booking history.
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Badge variant="secondary" className="text-xs">Digital Signatures</Badge>
-                  <Badge variant="secondary" className="text-xs">Auto Check-in</Badge>
-                  <Badge variant="secondary" className="text-xs">Guest History</Badge>
-                </div>
-              </CardContent>
-            </Card>
 
-            <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg hover:-translate-y-2 bg-gradient-to-br from-purple-50 to-pink-50" data-testid="card-room-tracking">
-              <CardHeader className="text-center pb-4">
-                <div className="mx-auto mb-4 w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                  <Hotel className="h-8 w-8 text-white" />
+          {/* Feature Content */}
+          <div className="grid md:grid-cols-2 gap-12 items-center max-w-5xl mx-auto">
+            <div className="bg-gradient-to-br from-purple-700 to-purple-500 rounded-3xl p-8 aspect-[4/5] flex items-center justify-center">
+              <div className="bg-white rounded-2xl shadow-xl w-full max-w-xs p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-xs text-gray-400">1:20</span>
+                  <div className="flex space-x-1">
+                    <div className="w-1 h-1 rounded-full bg-gray-400"></div>
+                    <div className="w-1 h-1 rounded-full bg-gray-400"></div>
+                    <div className="w-1 h-1 rounded-full bg-gray-400"></div>
+                  </div>
                 </div>
-                <CardTitle className="text-xl">Real-time Room Tracking</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600 leading-relaxed">
-                  Monitor room status, housekeeping schedules, and availability in real-time with our intuitive calendar interface.
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Badge variant="secondary" className="text-xs">Live Status</Badge>
-                  <Badge variant="secondary" className="text-xs">Housekeeping</Badge>
-                  <Badge variant="secondary" className="text-xs">Calendar View</Badge>
+                <div className="flex items-center space-x-2 mb-4">
+                  <div className="text-purple-600">←</div>
+                  <span className="font-semibold text-gray-900">Check-in</span>
                 </div>
-              </CardContent>
-            </Card>
+                <div className="flex space-x-3 mb-4">
+                  <Badge variant="outline" className="text-xs">ID Proof</Badge>
+                  <Badge variant="outline" className="text-xs">Basic Details</Badge>
+                </div>
+                <div className="space-y-3">
+                  <div className="text-sm text-gray-600">Guests</div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <div className="text-sm font-medium text-gray-900">Guest 01</div>
+                    <div className="text-xs text-gray-500">ID Card 📋</div>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <div className="text-sm font-medium text-gray-900">Guest 01</div>
+                  </div>
+                </div>
+                <Button className="w-full mt-4 bg-purple-600 hover:bg-purple-700 text-white" data-testid="button-add-id-mockup">
+                  Add ID
+                </Button>
+              </div>
+            </div>
 
-            <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg hover:-translate-y-2 bg-gradient-to-br from-green-50 to-emerald-50" data-testid="card-billing">
-              <CardHeader className="text-center pb-4">
-                <div className="mx-auto mb-4 w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                  <Receipt className="h-8 w-8 text-white" />
-                </div>
-                <CardTitle className="text-xl">Smart Billing & GST</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600 leading-relaxed">
-                  Generate GST-compliant invoices automatically with integrated tax calculations and payment tracking.
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Badge variant="secondary" className="text-xs">GST Compliant</Badge>
-                  <Badge variant="secondary" className="text-xs">Auto Invoices</Badge>
-                  <Badge variant="secondary" className="text-xs">Payment Tracking</Badge>
-                </div>
-              </CardContent>
-            </Card>
+            <div>
+              <h3 className="text-3xl font-bold text-gray-900 mb-4 italic">
+                {featureContent[activeFeature].title}
+              </h3>
+              <p className="text-gray-600 mb-6">
+                {featureContent[activeFeature].description}
+              </p>
+              <ul className="space-y-4">
+                {featureContent[activeFeature].points.map((point, idx) => (
+                  <li key={idx} className="flex items-center space-x-3">
+                    <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
+                    <span className="text-gray-700">{point}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
 
-            <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg hover:-translate-y-2 bg-gradient-to-br from-orange-50 to-red-50" data-testid="card-analytics">
-              <CardHeader className="text-center pb-4">
-                <div className="mx-auto mb-4 w-16 h-16 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                  <BarChart3 className="h-8 w-8 text-white" />
-                </div>
-                <CardTitle className="text-xl">Revenue Analytics</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600 leading-relaxed">
-                  Comprehensive insights and reports to track occupancy rates, revenue trends, and guest satisfaction.
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Badge variant="secondary" className="text-xs">Occupancy Reports</Badge>
-                  <Badge variant="secondary" className="text-xs">Revenue Trends</Badge>
-                  <Badge variant="secondary" className="text-xs">Guest Insights</Badge>
-                </div>
-              </CardContent>
-            </Card>
+      {/* Stats Section */}
+      <section className="py-20 bg-white">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-16">
+            More done in just few Seconds
+          </h2>
 
-            <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg hover:-translate-y-2 bg-gradient-to-br from-indigo-50 to-blue-50" data-testid="card-security">
-              <CardHeader className="text-center pb-4">
-                <div className="mx-auto mb-4 w-16 h-16 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                  <Shield className="h-8 w-8 text-white" />
-                </div>
-                <CardTitle className="text-xl">Enterprise Security</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600 leading-relaxed">
-                  Bank-grade security with role-based access control, data encryption, and compliance features.
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Badge variant="secondary" className="text-xs">Role-based Access</Badge>
-                  <Badge variant="secondary" className="text-xs">Data Encryption</Badge>
-                  <Badge variant="secondary" className="text-xs">Compliance</Badge>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+            {stats.map((stat, idx) => (
+              <Card key={idx} className="text-center p-8 border-0 shadow-lg" data-testid={`stat-card-${idx}`}>
+                <CardContent className="p-0">
+                  <div className="text-5xl md:text-6xl font-bold text-purple-600 mb-2">
+                    {stat.value}
+                  </div>
+                  <div className="text-lg font-semibold text-gray-900 mb-2">
+                    {stat.label}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {stat.description}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
 
-            <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg hover:-translate-y-2 bg-gradient-to-br from-teal-50 to-cyan-50" data-testid="card-automation">
-              <CardHeader className="text-center pb-4">
-                <div className="mx-auto mb-4 w-16 h-16 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                  <Zap className="h-8 w-8 text-white" />
+      {/* Steps Section */}
+      <section className="py-20 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-16">
+            Get Started Easily in just 5 Minutes
+          </h2>
+
+          <div className="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-4 max-w-4xl mx-auto">
+            {[
+              { step: "01", title: "Book a Demo", desc: "Understand, Evaluate & Explore" },
+              { step: "02", title: "Setup Account using AI", desc: "Room Inventory, Communications, Upselling" },
+              { step: "03", title: "Go Live", desc: "Deliver the best Guest experience" }
+            ].map((item, idx) => (
+              <div key={idx} className="flex items-center">
+                <div className="text-center">
+                  <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${
+                    idx === 0 ? "bg-purple-600 text-white" : "bg-white border-2 border-gray-200 text-gray-400"
+                  }`}>
+                    <div>
+                      <div className="text-xl font-bold">{item.step}</div>
+                      <div className="text-[10px] uppercase tracking-wider">Step</div>
+                    </div>
+                  </div>
+                  <h3 className="font-semibold text-gray-900 mb-1">{item.title}</h3>
+                  <p className="text-sm text-gray-500">{item.desc}</p>
                 </div>
-                <CardTitle className="text-xl">Smart Automation</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600 leading-relaxed">
-                  Automate repetitive tasks with AI-powered workflows for check-ins, room assignments, and housekeeping schedules.
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Badge variant="secondary" className="text-xs">AI Workflows</Badge>
-                  <Badge variant="secondary" className="text-xs">Auto Assignment</Badge>
-                  <Badge variant="secondary" className="text-xs">Smart Scheduling</Badge>
-                </div>
-              </CardContent>
-            </Card>
+                {idx < 2 && (
+                  <div className="hidden md:block w-24 h-0.5 bg-gray-200 mx-4 mt-[-2rem]" />
+                )}
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="py-20 bg-gradient-to-br from-gray-50 to-blue-50 relative">
+      <section id="pricing" className="py-20 bg-white">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <Badge className="mb-4 bg-green-50 text-green-700 border-green-200">
-              <Star className="w-4 h-4 mr-2" />
-              Transparent Pricing
-            </Badge>
-            <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
-              Choose Your
-              <span className="block bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Perfect Plan
-              </span>
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Simple, transparent pricing that grows with your business. No hidden fees, no surprises.
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-            <Card className="relative group hover:shadow-2xl transition-all duration-300 border-0 shadow-xl bg-white" data-testid="card-hotelier-plan">
-              <CardHeader className="text-center pb-6">
-                <div className="mx-auto mb-4 w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center">
-                  <Hotel className="h-8 w-8 text-white" />
-                </div>
-                <CardTitle className="text-2xl font-bold">Hotelier Plan</CardTitle>
-                <div className="text-5xl font-bold text-blue-600 mt-4">₹{hotelierPrice.toLocaleString()}
-                  <span className="text-lg text-gray-500 font-normal">/month</span>
-                </div>
-                <p className="text-gray-500 mt-2">Perfect for single properties</p>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="flex items-center text-gray-700">
-                    <CheckCircle className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
-                    Up to 50 rooms
-                  </div>
-                  <div className="flex items-center text-gray-700">
-                    <CheckCircle className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
-                    Complete guest management
-                  </div>
-                  <div className="flex items-center text-gray-700">
-                    <CheckCircle className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
-                    GST compliant billing
-                  </div>
-                  <div className="flex items-center text-gray-700">
-                    <CheckCircle className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
-                    Basic analytics & reports
-                  </div>
-                  <div className="flex items-center text-gray-700">
-                    <CheckCircle className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
-                    Email support
-                  </div>
-                </div>
-                <Link href="/signup?plan=hotelier" className="block mt-8">
-                  <Button className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200" data-testid="button-choose-hotelier">
-                    Get Started <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-4">
+            Simple, Transparent Pricing
+          </h2>
+          <p className="text-center text-gray-600 mb-12">Start with a 7-day free trial. No credit card required.</p>
 
-            <Card className="relative group hover:shadow-2xl transition-all duration-300 border-0 shadow-xl bg-gradient-to-br from-purple-600 to-pink-600 text-white overflow-hidden" data-testid="card-enterprise-plan">
-              <div className="absolute top-4 right-4">
-                <Badge className="bg-yellow-400 text-yellow-900 font-semibold">
-                  <Star className="w-3 h-3 mr-1" />
-                  Most Popular
-                </Badge>
+          <div className="max-w-md mx-auto">
+            <Card className="border-2 border-purple-200 shadow-xl overflow-hidden" data-testid="pricing-card">
+              <div className="bg-purple-600 text-white text-center py-2">
+                <span className="text-sm font-medium">Most Popular</span>
               </div>
-              <CardHeader className="text-center pb-6">
-                <div className="mx-auto mb-4 w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-                  <Sparkles className="h-8 w-8 text-white" />
+              <CardContent className="p-8">
+                <div className="text-center mb-6">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">Hotelier Plan</h3>
+                  <div className="flex items-baseline justify-center">
+                    <span className="text-5xl font-bold text-purple-600">₹{hotelierPrice.toLocaleString()}</span>
+                    <span className="text-gray-500 ml-2">/month</span>
+                  </div>
+                  <p className="text-gray-500 mt-2">Perfect for single properties</p>
                 </div>
-                <CardTitle className="text-2xl font-bold text-white">Enterprise Plan</CardTitle>
-                <div className="text-5xl font-bold text-white mt-4">₹{enterprisePrice.toLocaleString()}
-                  <span className="text-lg text-purple-100 font-normal">/month</span>
-                </div>
-                <p className="text-purple-100 mt-2">For hotel chains & large properties</p>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="flex items-center text-white">
-                    <CheckCircle className="h-5 w-5 text-yellow-300 mr-3 flex-shrink-0" />
-                    Unlimited rooms & properties
-                  </div>
-                  <div className="flex items-center text-white">
-                    <CheckCircle className="h-5 w-5 text-yellow-300 mr-3 flex-shrink-0" />
-                    Advanced analytics & insights
-                  </div>
-                  <div className="flex items-center text-white">
-                    <CheckCircle className="h-5 w-5 text-yellow-300 mr-3 flex-shrink-0" />
-                    Custom integrations & API
-                  </div>
-                  <div className="flex items-center text-white">
-                    <CheckCircle className="h-5 w-5 text-yellow-300 mr-3 flex-shrink-0" />
-                    Priority support & training
-                  </div>
-                  <div className="flex items-center text-white">
-                    <CheckCircle className="h-5 w-5 text-yellow-300 mr-3 flex-shrink-0" />
-                    Dedicated account manager
-                  </div>
-                </div>
-                <Link href="/signup?plan=enterprise" className="block mt-8">
-                  <Button className="w-full py-3 bg-white text-purple-600 hover:bg-gray-50 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200" data-testid="button-choose-enterprise">
-                    Choose Enterprise <ArrowRight className="ml-2 h-4 w-4" />
+
+                <ul className="space-y-3 mb-8">
+                  {[
+                    "Up to 50 rooms",
+                    "Complete guest management",
+                    "GST compliant billing",
+                    "WhatsApp notifications",
+                    "Analytics dashboard",
+                    "Email support"
+                  ].map((feature, idx) => (
+                    <li key={idx} className="flex items-center space-x-3">
+                      <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
+                      <span className="text-gray-700">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <Link href="/login">
+                  <Button 
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white py-6 text-lg rounded-full"
+                    data-testid="button-start-trial"
+                  >
+                    Start Free Trial
                   </Button>
                 </Link>
               </CardContent>
             </Card>
-          </div>
-          
-          <div className="text-center mt-12">
-            <p className="text-gray-600 mb-4">Need a custom solution? We've got you covered.</p>
-            <a href="mailto:vipul16kothari@gmail.com?subject=EaseInn%20Custom%20Solution%20Inquiry&body=Hi%2C%20I'm%20interested%20in%20a%20custom%20solution%20for%20my%20hotel%20property.%20Please%20contact%20me%20to%20discuss%20further.">
-              <Button variant="outline" size="lg" className="px-8 py-3 border-purple-300 text-purple-600 hover:bg-purple-50">
-                Contact Sales
-              </Button>
-            </a>
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer id="contact" className="bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 text-white py-20 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-20">
-          <div className="w-full h-full" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
-          }}></div>
+      {/* CTA Section */}
+      <section className="py-20 mx-4 md:mx-8 mb-8">
+        <div className="bg-gradient-to-r from-purple-700 to-purple-500 rounded-3xl p-12 md:p-16 text-center">
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+            Ready to Transform Your Property?
+          </h2>
+          <p className="text-purple-100 mb-8 max-w-2xl mx-auto">
+            Join hundreds of property owners who have streamlined operations, increased revenue, and 
+            delighted guests with EaseInn's all-in-one hotel management platform.
+          </p>
+          <Link href="/login">
+            <Button 
+              variant="outline" 
+              className="bg-white text-purple-600 hover:bg-gray-50 border-0 px-8 py-6 text-lg rounded-full"
+              data-testid="button-cta-demo"
+            >
+              Book Demo
+            </Button>
+          </Link>
         </div>
-        <div className="container mx-auto px-4 relative">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
-            <div className="md:col-span-2">
-              <div className="flex items-center space-x-3 mb-6">
-                <div className="relative">
-                  <Hotel className="h-8 w-8 text-white" />
-                  <Sparkles className="h-4 w-4 text-yellow-400 absolute -top-1 -right-1 animate-pulse" />
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-white border-t border-gray-100 py-16">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
+            {/* Brand */}
+            <div>
+              <div className="flex items-center space-x-2 mb-4">
+                <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-purple-400 rounded-xl flex items-center justify-center">
+                  <Hotel className="h-6 w-6 text-white" />
                 </div>
-                <h4 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">EaseInn</h4>
+                <span className="text-2xl font-bold text-gray-900">EaseInn</span>
               </div>
-              <p className="text-gray-300 text-lg leading-relaxed mb-6 max-w-md">
-                Revolutionizing hotel management with cutting-edge technology. Transform your operations and delight your guests with EaseInn.
-              </p>
+              <p className="text-gray-500 mb-4">The #1 preferred Hotel Manager</p>
               <div className="flex space-x-4">
-                <Badge className="bg-gradient-to-r from-blue-600 to-purple-600 text-white border-0">
-                  <Star className="w-3 h-3 mr-1" />
-                  500+ Hotels
-                </Badge>
-                <Badge className="bg-gradient-to-r from-green-600 to-teal-600 text-white border-0">
-                  <CheckCircle className="w-3 h-3 mr-1" />
-                  99.9% Uptime
-                </Badge>
+                <a href="#" className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center hover:bg-purple-100 transition-colors" data-testid="link-facebook">
+                  <SiFacebook className="h-5 w-5 text-gray-600" />
+                </a>
+                <a href="#" className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center hover:bg-purple-100 transition-colors" data-testid="link-instagram">
+                  <SiInstagram className="h-5 w-5 text-gray-600" />
+                </a>
+                <a href="#" className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center hover:bg-purple-100 transition-colors" data-testid="link-linkedin">
+                  <SiLinkedin className="h-5 w-5 text-gray-600" />
+                </a>
               </div>
             </div>
-            
+
+            {/* Links */}
             <div>
-              <h5 className="font-bold text-lg mb-6 text-white">Product</h5>
-              <ul className="space-y-3 text-gray-300">
-                <li><a href="#features" className="hover:text-blue-400 transition-colors hover:underline">Features</a></li>
-                <li><a href="#pricing" className="hover:text-blue-400 transition-colors hover:underline">Pricing</a></li>
-                <li><a href="#" className="hover:text-blue-400 transition-colors hover:underline">API Documentation</a></li>
-                <li><a href="#" className="hover:text-blue-400 transition-colors hover:underline">Integrations</a></li>
+              <h4 className="font-semibold text-gray-900 mb-4">Links</h4>
+              <ul className="space-y-3">
+                <li><a href="#pricing" className="text-gray-500 hover:text-purple-600 transition-colors" data-testid="link-pricing-footer">Pricing</a></li>
+                <li><Link href="/terms" className="text-gray-500 hover:text-purple-600 transition-colors" data-testid="link-terms">Terms & Conditions</Link></li>
+                <li><Link href="/privacy" className="text-gray-500 hover:text-purple-600 transition-colors" data-testid="link-privacy">Privacy Policy</Link></li>
+                <li><Link href="/refunds" className="text-gray-500 hover:text-purple-600 transition-colors" data-testid="link-refunds">Refund Policy</Link></li>
+                <li><Link href="/contact" className="text-gray-500 hover:text-purple-600 transition-colors" data-testid="link-contact-footer">Contact Us</Link></li>
               </ul>
             </div>
-            
+
+            {/* Contact */}
             <div>
-              <h5 className="font-bold text-lg mb-6 text-white">Support</h5>
-              <ul className="space-y-3 text-gray-300">
-                <li><a href="/contact" className="hover:text-blue-400 transition-colors hover:underline">Contact Us</a></li>
-                <li><a href="#" className="hover:text-blue-400 transition-colors hover:underline">Help Center</a></li>
-                <li><a href="#" className="hover:text-blue-400 transition-colors hover:underline">Training</a></li>
-                <li><a href="#" className="hover:text-blue-400 transition-colors hover:underline">Status Page</a></li>
+              <h4 className="font-semibold text-gray-900 mb-4">Contact Us</h4>
+              <ul className="space-y-3">
+                <li className="flex items-center space-x-2">
+                  <Phone className="h-4 w-4 text-gray-400" />
+                  <span className="text-gray-500">+91 9258424155</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <Mail className="h-4 w-4 text-gray-400" />
+                  <span className="text-gray-500">support@easeinn.com</span>
+                </li>
               </ul>
             </div>
-            
+
+            {/* Newsletter */}
             <div>
-              <h5 className="font-bold text-lg mb-6 text-white">Legal</h5>
-              <ul className="space-y-3 text-gray-300">
-                <li><a href="/terms" className="hover:text-blue-400 transition-colors hover:underline">Terms & Conditions</a></li>
-                <li><a href="/privacy" className="hover:text-blue-400 transition-colors hover:underline">Privacy Policy</a></li>
-                <li><a href="/refunds" className="hover:text-blue-400 transition-colors hover:underline">Refunds & Cancellation</a></li>
-                <li><a href="mailto:vipul16kothari@gmail.com" className="hover:text-blue-400 transition-colors hover:underline">Legal Inquiries</a></li>
-              </ul>
+              <h4 className="font-semibold text-gray-900 mb-4">Subscribe to Our Newsletter</h4>
+              <p className="text-gray-500 text-sm mb-4">Stay Updated with our latest Features & Reviews</p>
+              <div className="flex">
+                <Input 
+                  type="email" 
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="rounded-l-full border-r-0"
+                  data-testid="input-newsletter"
+                />
+                <Button className="bg-purple-600 hover:bg-purple-700 text-white rounded-r-full px-6" data-testid="button-subscribe">
+                  Subscribe
+                </Button>
+              </div>
             </div>
           </div>
-          
-          <div className="border-t border-gray-700/50 pt-8">
-            <div className="flex flex-col md:flex-row justify-between items-center">
-              <p className="text-gray-400 mb-4 md:mb-0">
-                &copy; 2025 EaseInn. All rights reserved. Made with ❤️ for hoteliers.
-              </p>
-              <div className="flex items-center space-x-6 text-gray-400">
-                <a href="/privacy" className="hover:text-blue-400 transition-colors">Privacy Policy</a>
-                <a href="/terms" className="hover:text-blue-400 transition-colors">Terms of Service</a>
-                <a href="/refunds" className="hover:text-blue-400 transition-colors">Refunds</a>
-                <a href="/contact" className="hover:text-blue-400 transition-colors">Contact</a>
-              </div>
-            </div>
+
+          <div className="border-t border-gray-100 mt-12 pt-8 text-center text-gray-400 text-sm">
+            <p>&copy; {new Date().getFullYear()} EaseInn. All rights reserved.</p>
           </div>
         </div>
       </footer>

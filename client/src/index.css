@@ -11,13 +11,25 @@
   --card-foreground: hsl(210, 25%, 7.8431%);
   --popover: hsl(0, 0%, 100%);
   --popover-foreground: hsl(210, 25%, 7.8431%);
-  --primary: hsl(210, 79%, 46%);
-  --primary-50: hsl(210, 100%, 95%);
-  --primary-100: hsl(210, 100%, 88%);
-  --primary-500: hsl(210, 79%, 46%);
-  --primary-600: hsl(210, 79%, 39%);
-  --primary-700: hsl(210, 100%, 25%);
+  --primary: hsl(262, 83%, 58%);
+  --primary-50: hsl(262, 100%, 97%);
+  --primary-100: hsl(262, 100%, 92%);
+  --primary-500: hsl(262, 83%, 58%);
+  --primary-600: hsl(262, 83%, 48%);
+  --primary-700: hsl(262, 90%, 40%);
   --primary-foreground: hsl(0, 0%, 100%);
+  
+  /* Purple theme colors */
+  --purple-50: hsl(270, 100%, 98%);
+  --purple-100: hsl(269, 100%, 95%);
+  --purple-200: hsl(269, 100%, 92%);
+  --purple-300: hsl(269, 97%, 85%);
+  --purple-400: hsl(270, 95%, 75%);
+  --purple-500: hsl(271, 91%, 65%);
+  --purple-600: hsl(271, 81%, 56%);
+  --purple-700: hsl(272, 72%, 47%);
+  --purple-800: hsl(273, 67%, 39%);
+  --purple-900: hsl(274, 66%, 32%);
   --secondary: hsl(210, 25%, 7.8431%);
   --secondary-foreground: hsl(0, 0%, 100%);
   --muted: hsl(240, 1.9608%, 90%);
@@ -162,5 +174,68 @@
   .status-maintenance { 
     background: #F3E5F5; 
     color: #7B1FA2; 
+  }
+  
+  /* Glassmorphism effects */
+  .glass {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  
+  .glass-purple {
+    background: rgba(139, 92, 246, 0.08);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(139, 92, 246, 0.15);
+  }
+  
+  .glass-dark {
+    background: rgba(88, 28, 135, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+  
+  /* Purple gradient backgrounds */
+  .bg-purple-gradient {
+    background: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #c084fc 100%);
+  }
+  
+  .bg-purple-gradient-dark {
+    background: linear-gradient(135deg, #581c87 0%, #7c3aed 50%, #9333ea 100%);
+  }
+  
+  /* Text gradient */
+  .text-gradient-purple {
+    background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  /* Smooth animations */
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-20px); }
+  }
+  
+  .animate-fade-in-up {
+    animation: fadeInUp 0.6s ease-out forwards;
+  }
+  
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 }
