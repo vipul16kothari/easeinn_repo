@@ -42,6 +42,353 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log("Channel manager routes not available - will be enabled after schema update");
   }
   
+  // ============================================
+  // PUBLIC GUEST SELF CHECK-IN ROUTES (no auth required)
+  // ============================================
+  
+  // Get hotel info by slug for public check-in page
+  app.get("/api/public/hotel/:slug", async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const hotel = await storage.getHotelBySlug(slug);
+      
+      if (!hotel) {
+        return res.status(404).json({ message: "Hotel not found" });
+      }
+      
+      if (!hotel.selfCheckInEnabled) {
+        return res.status(403).json({ message: "Self check-in is not enabled for this hotel" });
+      }
+      
+      if (!hotel.isActive) {
+        return res.status(403).json({ message: "This hotel is currently not accepting check-ins" });
+      }
+      
+      // Return limited public info
+      res.json({
+        id: hotel.id,
+        name: hotel.name,
+        address: hotel.address,
+        city: hotel.city,
+        state: hotel.state,
+        logo: hotel.logo,
+        selfCheckInEnabled: hotel.selfCheckInEnabled
+      });
+    } catch (error) {
+      console.error("Get public hotel error:", error);
+      res.status(500).json({ message: "Failed to fetch hotel information" });
+    }
+  });
+  
+  // Get available room types for public check-in
+  app.get("/api/public/hotel/:slug/room-types", async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const hotel = await storage.getHotelBySlug(slug);
+      
+      if (!hotel || !hotel.selfCheckInEnabled || !hotel.isActive) {
+        return res.status(404).json({ message: "Hotel not found or not accepting check-ins" });
+      }
+      
+      const rooms = await storage.getRooms(hotel.id);
+      const availableRooms = rooms.filter(r => r.status === "available");
+      
+      // Get unique room types with availability count
+      const roomTypeCounts: Record<string, number> = {};
+      availableRooms.forEach(room => {
+        const type = room.type || "standard";
+        roomTypeCounts[type] = (roomTypeCounts[type] || 0) + 1;
+      });
+      
+      res.json({
+        roomTypes: Object.entries(roomTypeCounts).map(([type, count]) => ({
+          type,
+          available: count
+        }))
+      });
+    } catch (error) {
+      console.error("Get room types error:", error);
+      res.status(500).json({ message: "Failed to fetch room types" });
+    }
+  });
+  
+  // Submit self check-in request (public)
+  const selfCheckInRequestSchema = z.object({
+    fullName: z.string().min(2, "Full name is required"),
+    phone: z.string().min(10, "Valid phone number is required"),
+    email: z.string().email().optional().or(z.literal("")),
+    numberOfGuests: z.number().min(1).default(1),
+    numberOfMales: z.number().min(0).default(0),
+    numberOfFemales: z.number().min(0).default(0),
+    numberOfChildren: z.number().min(0).default(0),
+    checkInDate: z.string().transform(str => new Date(str)),
+    checkOutDate: z.string().optional().transform(str => str ? new Date(str) : undefined),
+    preferredRoomType: z.string().optional(),
+    documentType: z.string().optional(),
+    documentNumber: z.string().optional(),
+    purposeOfVisit: z.enum(["business", "leisure", "family", "medical", "other"]).optional(),
+    specialRequests: z.string().optional()
+  });
+  
+  app.post("/api/public/hotel/:slug/checkin", async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const hotel = await storage.getHotelBySlug(slug);
+      
+      if (!hotel) {
+        return res.status(404).json({ message: "Hotel not found" });
+      }
+      
+      if (!hotel.selfCheckInEnabled) {
+        return res.status(403).json({ message: "Self check-in is not enabled for this hotel" });
+      }
+      
+      if (!hotel.isActive) {
+        return res.status(403).json({ message: "This hotel is currently not accepting check-ins" });
+      }
+      
+      const validatedData = selfCheckInRequestSchema.parse(req.body);
+      
+      const request = await storage.createSelfCheckInRequest({
+        hotelId: hotel.id,
+        fullName: validatedData.fullName,
+        phone: validatedData.phone,
+        email: validatedData.email || null,
+        numberOfGuests: validatedData.numberOfGuests,
+        numberOfMales: validatedData.numberOfMales,
+        numberOfFemales: validatedData.numberOfFemales,
+        numberOfChildren: validatedData.numberOfChildren,
+        checkInDate: validatedData.checkInDate,
+        checkOutDate: validatedData.checkOutDate || null,
+        preferredRoomType: validatedData.preferredRoomType as any || null,
+        documentType: validatedData.documentType || null,
+        documentNumber: validatedData.documentNumber || null,
+        purposeOfVisit: validatedData.purposeOfVisit as any || null,
+        specialRequests: validatedData.specialRequests || null,
+        status: "pending"
+      });
+      
+      res.status(201).json({
+        message: "Check-in request submitted successfully",
+        requestId: request.id,
+        status: "pending"
+      });
+    } catch (error) {
+      console.error("Self check-in request error:", error);
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: "Invalid form data", errors: error.errors });
+      } else {
+        res.status(500).json({ message: "Failed to submit check-in request" });
+      }
+    }
+  });
+  
+  // ============================================
+  // AUTHENTICATED SELF CHECK-IN MANAGEMENT ROUTES
+  // ============================================
+  
+  // Get all self check-in requests for hotel
+  app.get("/api/self-checkin-requests", authenticateToken, requireActiveHotel(storage), async (req: any, res) => {
+    try {
+      const hotelId = req.hotel?.id;
+      if (!hotelId) {
+        return res.status(400).json({ message: "No hotel found" });
+      }
+      
+      const status = req.query.status as string | undefined;
+      const requests = await storage.getSelfCheckInRequests(hotelId, status);
+      res.json(requests);
+    } catch (error) {
+      console.error("Get self check-in requests error:", error);
+      res.status(500).json({ message: "Failed to fetch check-in requests" });
+    }
+  });
+  
+  // Get single self check-in request
+  app.get("/api/self-checkin-requests/:id", authenticateToken, requireActiveHotel(storage), async (req: any, res) => {
+    try {
+      const request = await storage.getSelfCheckInRequest(req.params.id);
+      if (!request) {
+        return res.status(404).json({ message: "Request not found" });
+      }
+      
+      // Verify hotel ownership
+      if (request.hotelId !== req.hotel?.id && req.user.role !== "superadmin") {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      res.json(request);
+    } catch (error) {
+      console.error("Get self check-in request error:", error);
+      res.status(500).json({ message: "Failed to fetch request" });
+    }
+  });
+  
+  // Approve/reject self check-in request
+  app.patch("/api/self-checkin-requests/:id", authenticateToken, requireActiveHotel(storage), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { status, assignedRoomId } = req.body;
+      
+      const request = await storage.getSelfCheckInRequest(id);
+      if (!request) {
+        return res.status(404).json({ message: "Request not found" });
+      }
+      
+      // Verify hotel ownership
+      if (request.hotelId !== req.hotel?.id && req.user.role !== "superadmin") {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      if (!["approved", "rejected"].includes(status)) {
+        return res.status(400).json({ message: "Invalid status. Use 'approved' or 'rejected'" });
+      }
+      
+      const updates: any = {
+        status,
+        processedBy: req.user.userId,
+        processedAt: new Date()
+      };
+      
+      if (assignedRoomId) {
+        updates.assignedRoomId = assignedRoomId;
+      }
+      
+      const updatedRequest = await storage.updateSelfCheckInRequest(id, updates);
+      
+      res.json({
+        message: `Check-in request ${status}`,
+        request: updatedRequest
+      });
+    } catch (error) {
+      console.error("Update self check-in request error:", error);
+      res.status(500).json({ message: "Failed to update request" });
+    }
+  });
+  
+  // Convert approved request to full check-in
+  app.post("/api/self-checkin-requests/:id/convert", authenticateToken, requireActiveHotel(storage), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { roomId, checkInTime, expectedCheckOutDate, expectedCheckOutTime, roomRate } = req.body;
+      
+      const request = await storage.getSelfCheckInRequest(id);
+      if (!request) {
+        return res.status(404).json({ message: "Request not found" });
+      }
+      
+      // Verify hotel ownership
+      if (request.hotelId !== req.hotel?.id && req.user.role !== "superadmin") {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      if (request.status !== "approved") {
+        return res.status(400).json({ message: "Only approved requests can be converted to check-ins" });
+      }
+      
+      // Verify room is available
+      const room = await storage.getRoom(roomId);
+      if (!room || room.status !== "available") {
+        return res.status(400).json({ message: "Selected room is not available" });
+      }
+      
+      // Create guest record
+      const guest = await storage.createGuest({
+        hotelId: request.hotelId,
+        fullName: request.fullName,
+        phone: request.phone,
+        email: request.email,
+        numberOfMales: request.numberOfMales || 0,
+        numberOfFemales: request.numberOfFemales || 0,
+        numberOfChildren: request.numberOfChildren || 0,
+        documentType: request.documentType,
+        documentNumber: request.documentNumber,
+        purposeOfVisit: request.purposeOfVisit,
+        address: ""
+      });
+      
+      // Create check-in record
+      const checkIn = await storage.createCheckIn({
+        guestId: guest.id,
+        roomId: roomId,
+        hotelId: request.hotelId,
+        checkInDate: request.checkInDate,
+        checkInTime: checkInTime || new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false }),
+        expectedCheckOutDate: expectedCheckOutDate ? new Date(expectedCheckOutDate) : (request.checkOutDate || new Date(Date.now() + 24 * 60 * 60 * 1000)),
+        expectedCheckOutTime: expectedCheckOutTime || "11:00",
+        roomRate: roomRate || room.basePrice || 0,
+        totalAmount: roomRate || room.basePrice || 0
+      });
+      
+      // Update room status to occupied
+      await storage.updateRoomStatus(roomId, "occupied");
+      
+      // Mark request as converted
+      await storage.updateSelfCheckInRequest(id, {
+        status: "converted",
+        assignedRoomId: roomId,
+        convertedCheckInId: checkIn.id,
+        processedBy: req.user.userId,
+        processedAt: new Date()
+      });
+      
+      res.json({
+        message: "Check-in created successfully",
+        checkIn,
+        guest
+      });
+    } catch (error) {
+      console.error("Convert self check-in request error:", error);
+      res.status(500).json({ message: "Failed to convert request to check-in" });
+    }
+  });
+  
+  // Generate or regenerate QR code slug for hotel
+  app.post("/api/hotel/generate-qr-slug", authenticateToken, requireActiveHotel(storage), async (req: any, res) => {
+    try {
+      const hotelId = req.hotel?.id;
+      if (!hotelId) {
+        return res.status(400).json({ message: "No hotel found" });
+      }
+      
+      const slug = await storage.generateHotelSlug(hotelId);
+      
+      res.json({
+        message: "QR code slug generated successfully",
+        slug,
+        checkInUrl: `/checkin/${slug}`
+      });
+    } catch (error) {
+      console.error("Generate QR slug error:", error);
+      res.status(500).json({ message: "Failed to generate QR code" });
+    }
+  });
+  
+  // Toggle self check-in enabled for hotel
+  app.patch("/api/hotel/self-checkin-settings", authenticateToken, requireActiveHotel(storage), async (req: any, res) => {
+    try {
+      const hotelId = req.hotel?.id;
+      if (!hotelId) {
+        return res.status(400).json({ message: "No hotel found" });
+      }
+      
+      const { enabled } = req.body;
+      
+      const updatedHotel = await storage.updateHotel(hotelId, {
+        selfCheckInEnabled: enabled
+      });
+      
+      res.json({
+        message: enabled ? "Self check-in enabled" : "Self check-in disabled",
+        selfCheckInEnabled: updatedHotel.selfCheckInEnabled,
+        selfCheckInSlug: updatedHotel.selfCheckInSlug
+      });
+    } catch (error) {
+      console.error("Update self check-in settings error:", error);
+      res.status(500).json({ message: "Failed to update settings" });
+    }
+  });
+  
   // Room routes (protected)
   app.get("/api/rooms", authenticateToken, requireActiveHotel(storage), checkTrialExpiration, async (req: any, res) => {
     try {
