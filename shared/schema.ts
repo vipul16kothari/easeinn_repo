@@ -400,7 +400,7 @@ export const otaChannels = pgTable("ota_channels", {
     username: string;
     password: string;
     apiKey?: string;
-  }>().default({}),
+  }>(),
   propertyId: varchar("property_id", { length: 100 }), // Hotel ID on the OTA platform
   
   // Channel Settings

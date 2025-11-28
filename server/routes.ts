@@ -969,7 +969,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         receipt: order.receipt,
         status: order.status
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Test order creation error:", error);
       res.status(500).json({ 
         success: false, 
@@ -997,7 +997,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         receipt: order.receipt,
         status: order.status
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Test booking order creation error:", error);
       res.status(500).json({ 
         success: false, 
