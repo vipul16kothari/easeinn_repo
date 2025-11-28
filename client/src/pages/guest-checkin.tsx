@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -11,13 +11,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useParams } from "wouter";
-import { CheckCircle, Hotel, MapPin, Phone, Mail, User, Calendar, Users, FileText, Loader2 } from "lucide-react";
+import { CheckCircle, Hotel, MapPin, Phone, Mail, User, Calendar, Users, FileText, Loader2, Upload, X } from "lucide-react";
 
 const guestCheckInSchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
   phone: z.string().min(10, "Valid phone number is required"),
   email: z.string().email("Invalid email").optional().or(z.literal("")),
-  numberOfGuests: z.coerce.number().min(1, "At least 1 guest required").default(1),
   numberOfMales: z.coerce.number().min(0).default(0),
   numberOfFemales: z.coerce.number().min(0).default(0),
   numberOfChildren: z.coerce.number().min(0).default(0),
@@ -25,8 +24,8 @@ const guestCheckInSchema = z.object({
   checkOutDate: z.string().optional(),
   preferredRoomType: z.string().optional(),
   documentType: z.string().optional(),
-  documentNumber: z.string().optional(),
-  purposeOfVisit: z.enum(["business", "leisure", "family", "medical", "other"]).optional(),
+  documentImage: z.string().optional(),
+  purposeOfVisit: z.enum(["business", "leisure", "conference", "wedding", "other"]).optional(),
   specialRequests: z.string().optional()
 });
 
@@ -52,6 +51,9 @@ export default function GuestCheckIn() {
   const { toast } = useToast();
   const [submitted, setSubmitted] = useState(false);
   const [requestId, setRequestId] = useState<string | null>(null);
+  const [documentPreview, setDocumentPreview] = useState<string | null>(null);
+  const [documentFileName, setDocumentFileName] = useState<string>("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: hotelInfo, isLoading: hotelLoading, error: hotelError } = useQuery<HotelInfo>({
     queryKey: ['/api/public/hotel', slug],
@@ -92,26 +94,80 @@ export default function GuestCheckIn() {
       fullName: "",
       phone: "",
       email: "",
-      numberOfGuests: 1,
-      numberOfMales: 0,
+      numberOfMales: 1,
       numberOfFemales: 0,
       numberOfChildren: 0,
       checkInDate: new Date().toISOString().split('T')[0],
       checkOutDate: "",
       preferredRoomType: "",
       documentType: "",
-      documentNumber: "",
+      documentImage: "",
       purposeOfVisit: undefined,
       specialRequests: ""
     }
   });
 
+  const males = form.watch("numberOfMales") || 0;
+  const females = form.watch("numberOfFemales") || 0;
+  const children = form.watch("numberOfChildren") || 0;
+  const totalGuests = males + females + children;
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'application/pdf'];
+    if (!validTypes.includes(file.type)) {
+      toast({
+        title: "Invalid File Type",
+        description: "Please upload a PNG, JPEG, or PDF file.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File Too Large",
+        description: "Please upload a file smaller than 5MB.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = reader.result as string;
+      form.setValue("documentImage", base64);
+      setDocumentPreview(file.type.startsWith('image/') ? base64 : null);
+      setDocumentFileName(file.name);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeDocument = () => {
+    form.setValue("documentImage", "");
+    setDocumentPreview(null);
+    setDocumentFileName("");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   const submitMutation = useMutation({
     mutationFn: async (data: GuestCheckInFormData) => {
+      const numberOfGuests = (data.numberOfMales || 0) + (data.numberOfFemales || 0) + (data.numberOfChildren || 0);
+      if (numberOfGuests < 1) {
+        throw new Error("At least one guest is required");
+      }
+      
       const response = await fetch(`/api/public/hotel/${slug}/checkin`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data)
+        body: JSON.stringify({
+          ...data,
+          numberOfGuests
+        })
       });
       
       if (!response.ok) {
@@ -299,26 +355,18 @@ export default function GuestCheckIn() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <FormField
                       control={form.control}
-                      name="numberOfGuests"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Total Guests</FormLabel>
-                          <FormControl>
-                            <Input type="number" min="1" {...field} data-testid="input-total-guests" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
                       name="numberOfMales"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Males</FormLabel>
+                          <FormLabel>Males *</FormLabel>
                           <FormControl>
-                            <Input type="number" min="0" {...field} data-testid="input-males" />
+                            <Input 
+                              type="number" 
+                              min="0" 
+                              {...field}
+                              onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                              data-testid="input-males" 
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -332,7 +380,13 @@ export default function GuestCheckIn() {
                         <FormItem>
                           <FormLabel>Females</FormLabel>
                           <FormControl>
-                            <Input type="number" min="0" {...field} data-testid="input-females" />
+                            <Input 
+                              type="number" 
+                              min="0" 
+                              {...field}
+                              onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                              data-testid="input-females" 
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -346,12 +400,27 @@ export default function GuestCheckIn() {
                         <FormItem>
                           <FormLabel>Children</FormLabel>
                           <FormControl>
-                            <Input type="number" min="0" {...field} data-testid="input-children" />
+                            <Input 
+                              type="number" 
+                              min="0" 
+                              {...field}
+                              onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                              data-testid="input-children" 
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
+
+                    <div>
+                      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        Total Guests
+                      </label>
+                      <div className="mt-2 h-10 px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-md flex items-center font-semibold text-lg" data-testid="display-total-guests">
+                        {totalGuests || 0}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -433,9 +502,9 @@ export default function GuestCheckIn() {
                             </FormControl>
                             <SelectContent>
                               <SelectItem value="business">Business</SelectItem>
-                              <SelectItem value="leisure">Leisure</SelectItem>
-                              <SelectItem value="family">Family</SelectItem>
-                              <SelectItem value="medical">Medical</SelectItem>
+                              <SelectItem value="leisure">Leisure / Tourism</SelectItem>
+                              <SelectItem value="conference">Conference / Event</SelectItem>
+                              <SelectItem value="wedding">Wedding / Function</SelectItem>
                               <SelectItem value="other">Other</SelectItem>
                             </SelectContent>
                           </Select>
@@ -478,19 +547,51 @@ export default function GuestCheckIn() {
                       )}
                     />
 
-                    <FormField
-                      control={form.control}
-                      name="documentNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Document Number</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Enter document number" {...field} data-testid="input-doc-number" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
+                    <div>
+                      <label className="text-sm font-medium leading-none mb-2 block">
+                        Upload Document
+                      </label>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileUpload}
+                        accept=".png,.jpg,.jpeg,.pdf"
+                        className="hidden"
+                        data-testid="input-doc-file"
+                      />
+                      {!documentFileName ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full h-10"
+                          onClick={() => fileInputRef.current?.click()}
+                          data-testid="button-upload-doc"
+                        >
+                          <Upload className="h-4 w-4 mr-2" />
+                          Choose File (PNG, JPEG, PDF)
+                        </Button>
+                      ) : (
+                        <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+                          {documentPreview ? (
+                            <img src={documentPreview} alt="Document" className="h-8 w-8 object-cover rounded" />
+                          ) : (
+                            <FileText className="h-8 w-8 text-green-600" />
+                          )}
+                          <span className="flex-1 text-sm truncate text-green-700 dark:text-green-400">{documentFileName}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-red-500 hover:text-red-700"
+                            onClick={removeDocument}
+                            data-testid="button-remove-doc"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
                       )}
-                    />
+                      <p className="text-xs text-gray-500 mt-1">Max 5MB. PNG, JPEG, or PDF</p>
+                    </div>
                   </div>
                 </div>
 

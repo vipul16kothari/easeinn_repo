@@ -125,8 +125,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     checkOutDate: z.string().optional().transform(str => str ? new Date(str) : undefined),
     preferredRoomType: z.string().optional(),
     documentType: z.string().optional(),
-    documentNumber: z.string().optional(),
-    purposeOfVisit: z.enum(["business", "leisure", "family", "medical", "other"]).optional(),
+    documentImage: z.string().optional(),
+    purposeOfVisit: z.enum(["business", "leisure", "conference", "wedding", "other"]).optional(),
     specialRequests: z.string().optional()
   });
   
@@ -162,7 +162,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         checkOutDate: validatedData.checkOutDate || null,
         preferredRoomType: validatedData.preferredRoomType as any || null,
         documentType: validatedData.documentType || null,
-        documentNumber: validatedData.documentNumber || null,
+        documentNumber: null,
         purposeOfVisit: validatedData.purposeOfVisit as any || null,
         specialRequests: validatedData.specialRequests || null,
         status: "pending"
