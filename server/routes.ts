@@ -324,11 +324,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const checkIn = await storage.createCheckIn({
         guestId: guest.id,
         roomId: roomId,
-        hotelId: request.hotelId,
         checkInDate: request.checkInDate,
         checkInTime: checkInTime || new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false }),
-        expectedCheckOutDate: checkOutDate,
-        expectedCheckOutTime: expectedCheckOutTime || "11:00",
+        checkOutDate: checkOutDate,
+        checkOutTime: expectedCheckOutTime || "11:00",
         roomRate: roomRate || room.basePrice || 0,
         totalAmount: roomRate || room.basePrice || 0
       });
