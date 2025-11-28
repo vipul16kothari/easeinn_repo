@@ -1,7 +1,7 @@
 import { 
   users, rooms, guests, checkIns, hotels, invoices, bookings, bookingRooms,
   otaChannels, channelRatePlans, channelInventory, channelSyncLogs, channelRoomMapping, channelBookings,
-  hotelLeads, auditLogs,
+  hotelLeads, auditLogs, selfCheckInRequests,
   type User, type InsertUser,
   type Room, type InsertRoom,
   type Guest, type InsertGuest,
@@ -19,7 +19,8 @@ import {
   type ChannelSyncLog,
   type OtaChannelWithRatePlans,
   type HotelLead, type InsertHotelLead,
-  type AuditLog, type InsertAuditLog
+  type AuditLog, type InsertAuditLog,
+  type SelfCheckInRequest, type InsertSelfCheckInRequest
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, ilike, or, sql } from "drizzle-orm";
@@ -125,6 +126,14 @@ export interface IStorage {
   // Audit log methods
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
   getAuditLogs(filters?: { entityType?: string; hotelId?: string; userId?: string; limit?: number; offset?: number }): Promise<{ logs: AuditLog[], total: number }>;
+  
+  // Self Check-in Request methods
+  getSelfCheckInRequests(hotelId: string, status?: string): Promise<SelfCheckInRequest[]>;
+  getSelfCheckInRequest(id: string): Promise<SelfCheckInRequest | undefined>;
+  createSelfCheckInRequest(request: InsertSelfCheckInRequest): Promise<SelfCheckInRequest>;
+  updateSelfCheckInRequest(id: string, updates: Partial<SelfCheckInRequest>): Promise<SelfCheckInRequest>;
+  getHotelBySlug(slug: string): Promise<Hotel | undefined>;
+  generateHotelSlug(hotelId: string): Promise<string>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -881,6 +890,68 @@ export class DatabaseStorage implements IStorage {
       logs: results,
       total: countResult[0].count
     };
+  }
+
+  // Self Check-in Request methods
+  async getSelfCheckInRequests(hotelId: string, status?: string): Promise<SelfCheckInRequest[]> {
+    if (status) {
+      return await db.select().from(selfCheckInRequests)
+        .where(and(
+          eq(selfCheckInRequests.hotelId, hotelId),
+          eq(selfCheckInRequests.status, status as any)
+        ))
+        .orderBy(desc(selfCheckInRequests.createdAt));
+    }
+    return await db.select().from(selfCheckInRequests)
+      .where(eq(selfCheckInRequests.hotelId, hotelId))
+      .orderBy(desc(selfCheckInRequests.createdAt));
+  }
+
+  async getSelfCheckInRequest(id: string): Promise<SelfCheckInRequest | undefined> {
+    const [request] = await db.select().from(selfCheckInRequests).where(eq(selfCheckInRequests.id, id));
+    return request || undefined;
+  }
+
+  async createSelfCheckInRequest(request: InsertSelfCheckInRequest): Promise<SelfCheckInRequest> {
+    const [newRequest] = await db.insert(selfCheckInRequests).values(request as any).returning();
+    return newRequest;
+  }
+
+  async updateSelfCheckInRequest(id: string, updates: Partial<SelfCheckInRequest>): Promise<SelfCheckInRequest> {
+    const [updatedRequest] = await db
+      .update(selfCheckInRequests)
+      .set(updates as any)
+      .where(eq(selfCheckInRequests.id, id))
+      .returning();
+    return updatedRequest;
+  }
+
+  async getHotelBySlug(slug: string): Promise<Hotel | undefined> {
+    const [hotel] = await db.select().from(hotels).where(eq(hotels.selfCheckInSlug, slug));
+    return hotel || undefined;
+  }
+
+  async generateHotelSlug(hotelId: string): Promise<string> {
+    const hotel = await this.getHotel(hotelId);
+    if (!hotel) {
+      throw new Error("Hotel not found");
+    }
+    
+    // Generate a URL-safe slug from hotel name + random suffix
+    const baseSlug = hotel.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+      .substring(0, 30);
+    
+    const randomSuffix = Math.random().toString(36).substring(2, 8);
+    const slug = `${baseSlug}-${randomSuffix}`;
+    
+    // Update the hotel with the new slug
+    await db.update(hotels).set({ selfCheckInSlug: slug }).where(eq(hotels.id, hotelId));
+    
+    return slug;
   }
 }
 
