@@ -7,6 +7,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { CreditCard, Receipt, Clock, CheckCircle, XCircle, IndianRupee, PartyPopper } from "lucide-react";
+// @ts-ignore
 import confetti from "canvas-confetti";
 
 interface Payment {
@@ -59,7 +60,8 @@ export default function Payments() {
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const config = await apiRequest("GET", "/api/payments/config");
+        const response = await apiRequest("GET", "/api/payments/config");
+        const config = await response.json();
         setRazorpayKey(config.razorpay_key_id);
       } catch (error) {
         console.error("Failed to fetch Razorpay config:", error);
@@ -81,14 +83,15 @@ export default function Payments() {
   }, []);
 
   // Fetch payment history
-  const { data: payments = [], isLoading } = useQuery({
+  const { data: payments = [], isLoading } = useQuery<Payment[]>({
     queryKey: ["/api/payments/history"],
   });
 
   // Create subscription payment
   const subscriptionMutation = useMutation({
     mutationFn: async (data: { amount: number; planName: string }) => {
-      return await apiRequest("POST", "/api/payments/subscription", data);
+      const response = await apiRequest("POST", "/api/payments/subscription", data);
+      return response.json();
     },
     onSuccess: (order) => {
       handleRazorpayPayment(order, "subscription");
@@ -107,7 +110,7 @@ export default function Payments() {
   const checkPaymentStatus = async (paymentId: string) => {
     try {
       const response = await apiRequest("GET", `/api/payments/status/${paymentId}`);
-      return response;
+      return await response.json();
     } catch (error) {
       console.error('Error checking payment status:', error);
       return { status: 'unknown' };
