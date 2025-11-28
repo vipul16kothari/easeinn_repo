@@ -126,6 +126,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     preferredRoomType: z.string().optional(),
     documentType: z.string().optional(),
     documentImage: z.string().optional(),
+    comingFrom: z.string().min(2, "City/Place is required"),
+    nationality: z.string().min(2, "Nationality is required"),
     purposeOfVisit: z.enum(["business", "leisure", "conference", "wedding", "other"]).optional(),
     specialRequests: z.string().optional()
   });
@@ -164,6 +166,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         documentType: validatedData.documentType || null,
         documentNumber: null,
         documentImage: validatedData.documentImage || null,
+        comingFrom: validatedData.comingFrom,
+        nationality: validatedData.nationality,
         purposeOfVisit: validatedData.purposeOfVisit as any || null,
         specialRequests: validatedData.specialRequests || null,
         status: "pending"
@@ -299,8 +303,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fullName: request.fullName,
         phone: request.phone,
         address: request.specialRequests || "Self Check-in",
-        comingFrom: "Self Check-in",
-        nationality: "Indian",
+        comingFrom: request.comingFrom || "Not specified",
+        nationality: request.nationality || "Indian",
         numberOfMales: request.numberOfMales || 0,
         numberOfFemales: request.numberOfFemales || 0,
         numberOfChildren: request.numberOfChildren || 0,
@@ -309,6 +313,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         purposeOfVisit: request.purposeOfVisit || undefined
       });
       
+      // Calculate checkout date - use provided date, request date, or default to tomorrow
+      const checkOutDate = expectedCheckOutDate 
+        ? new Date(expectedCheckOutDate) 
+        : request.checkOutDate 
+          ? new Date(request.checkOutDate) 
+          : new Date(Date.now() + 24 * 60 * 60 * 1000);
+      
       // Create check-in record
       const checkIn = await storage.createCheckIn({
         guestId: guest.id,
@@ -316,7 +327,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         hotelId: request.hotelId,
         checkInDate: request.checkInDate,
         checkInTime: checkInTime || new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false }),
-        expectedCheckOutDate: expectedCheckOutDate ? new Date(expectedCheckOutDate) : (request.checkOutDate || new Date(Date.now() + 24 * 60 * 60 * 1000)),
+        expectedCheckOutDate: checkOutDate,
         expectedCheckOutTime: expectedCheckOutTime || "11:00",
         roomRate: roomRate || room.basePrice || 0,
         totalAmount: roomRate || room.basePrice || 0

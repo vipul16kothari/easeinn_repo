@@ -25,6 +25,8 @@ const guestCheckInSchema = z.object({
   preferredRoomType: z.string().optional(),
   documentType: z.string().optional(),
   documentImage: z.string().optional(),
+  comingFrom: z.string().min(2, "City/Place is required"),
+  nationality: z.string().min(2, "Nationality is required"),
   purposeOfVisit: z.enum(["business", "leisure", "conference", "wedding", "other"]).optional(),
   specialRequests: z.string().optional()
 });
@@ -102,6 +104,8 @@ export default function GuestCheckIn() {
       preferredRoomType: "",
       documentType: "",
       documentImage: "",
+      comingFrom: "",
+      nationality: "Indian",
       purposeOfVisit: undefined,
       specialRequests: ""
     }
@@ -338,6 +342,36 @@ export default function GuestCheckIn() {
                           <FormLabel>Email (Optional)</FormLabel>
                           <FormControl>
                             <Input placeholder="Enter email" type="email" {...field} data-testid="input-email" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="comingFrom"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Coming From (City/Place) *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter city or place" {...field} data-testid="input-coming-from" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="nationality"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nationality *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter nationality" {...field} data-testid="input-nationality" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>

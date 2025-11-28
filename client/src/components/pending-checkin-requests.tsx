@@ -41,6 +41,8 @@ interface SelfCheckInRequest {
   documentType: string | null;
   documentNumber: string | null;
   documentImage: string | null;
+  comingFrom: string | null;
+  nationality: string | null;
   purposeOfVisit: string | null;
   specialRequests: string | null;
   status: "pending" | "approved" | "rejected" | "converted";
@@ -304,6 +306,18 @@ export default function PendingCheckInRequests() {
                       {new Date(selectedRequest.checkInDate).toLocaleDateString('en-IN')}
                     </p>
                   </div>
+                  {selectedRequest.comingFrom && (
+                    <div>
+                      <span className="text-gray-500">Coming From:</span>
+                      <p className="font-medium">{selectedRequest.comingFrom}</p>
+                    </div>
+                  )}
+                  {selectedRequest.nationality && (
+                    <div>
+                      <span className="text-gray-500">Nationality:</span>
+                      <p className="font-medium">{selectedRequest.nationality}</p>
+                    </div>
+                  )}
                   {selectedRequest.documentType && (
                     <div>
                       <span className="text-gray-500">Document:</span>
