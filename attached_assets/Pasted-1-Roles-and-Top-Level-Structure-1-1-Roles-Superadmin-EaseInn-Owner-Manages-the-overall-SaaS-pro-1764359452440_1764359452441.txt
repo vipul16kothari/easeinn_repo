@@ -1,0 +1,418 @@
+1. Roles and Top-Level Structure
+1.1 Roles
+
+Superadmin (EaseInn Owner)
+
+Manages the overall SaaS product.
+
+Can create and manage multiple hotels.
+
+Manages each hotel’s subscription / plan.
+
+Hotelier (Hotel Admin / Staff for a specific hotel)
+
+Manages day-to-day hotel operations for their hotel:
+
+Rooms & inventory
+
+Guest check-ins / check-outs
+
+Advance bookings
+
+Billing & invoices
+
+Sending soft copy bills + review links
+
+Guest
+
+Stays at the hotel.
+
+Can self check-in by scanning a QR code / visiting a URL.
+
+2. Superadmin Flow (EaseInn Owner)
+2.1 Login
+
+Entry point: Superadmin logs in to the EaseInn Superadmin Portal.
+
+After login: Superadmin dashboard with:
+
+Total number of hotels
+
+Active / inactive subscriptions
+
+Quick link: “Add New Hotel”
+
+2.2 Add Multiple Hotels
+
+Goal: Allow Superadmin to onboard and manage multiple hotels.
+
+Screen: “Hotels” List
+
+Columns:
+
+Hotel Name
+
+City
+
+Status (Active / Inactive)
+
+Subscription Plan
+
+Actions: View / Edit / Deactivate
+
+CTAs:
+
++ Add Hotel
+
+Screen: “Add Hotel”
+
+Fields:
+
+Hotel Name
+
+Address (Line 1, Line 2, City, State, Country, PIN)
+
+Contact Person Name
+
+Contact Person Phone
+
+Contact Person Email
+
+No. of Rooms (for information)
+
+Hotel Time Zone
+
+On Save:
+
+Create a Hotel record.
+
+Auto-create a Hotelier Admin user with login credentials.
+
+Generate a unique public check-in URL + QR code for this hotel (used in guest flow).
+
+Redirect back to Hotels List.
+
+2.3 Manage Subscription
+
+Goal: Allow Superadmin to manage billing/subscription for each hotel.
+
+Screen: “Subscriptions”
+
+Visible per hotel:
+
+Hotel Name
+
+Current Plan (e.g., Basic / Standard / Pro)
+
+Billing Cycle (Monthly / Annual)
+
+Next Renewal Date
+
+Status (Active / Suspended)
+
+CTA: Change Plan, Cancel Subscription, View Invoices
+
+Actions:
+
+Change Plan
+
+Superadmin selects a new plan.
+
+System shows price and effective date.
+
+On confirmation, subscription updated and stored in DB.
+
+Cancel / Suspend Subscription
+
+Marks hotel as inactive (Hotelier cannot log in / operations blocked).
+
+Optionally set an end date.
+
+View Invoices
+
+List of all invoices raised for that hotel.
+
+Download invoice PDF.
+
+3. Hotelier Flow (Per Hotel)
+3.1 Login
+
+Hotelier logs into the Hotel Panel (web or app) using their email/phone + password.
+
+On login, they see the Hotel Dashboard.
+
+3.2 Manage Inventory
+
+Goal: Configure and maintain room inventory.
+
+Screen: “Inventory / Rooms”
+
+Features:
+
+Add room types:
+
+Room Type Name (e.g., Deluxe, Suite)
+
+Base Price per night
+
+Max Occupancy
+
+Amenities (Wi-Fi, Breakfast, etc.)
+
+Assign physical rooms:
+
+Room Number
+
+Room Type (dropdown)
+
+Floor
+
+Status (Available / Under Maintenance)
+
+Calendar View (Optional but useful):
+
+Monthly/weekly calendar showing room availability.
+
+Clicking on a date + room shows:
+
+Booking status
+
+Guest name (if assigned)
+
+Check-in/Check-out dates.
+
+3.3 Guest Check-In (Staff Initiated)
+
+Goal: Hotel staff can check in guests from the panel (walk-ins or bookings).
+
+Screen: “Check-ins” / “Today’s Check-ins”
+
+Tabs:
+
+Pending (requests from guest self check-in & future reservations arriving today)
+
+Checked-in
+
+Checked-out
+
+Process:
+
+Staff opens “Pending” list.
+
+Selects a guest entry (from advance booking or self check-in).
+
+Verifies mandatory details (name, ID, number of guests, etc.).
+
+Assigns a room:
+
+Choose available room from dropdown.
+
+Confirms check-in.
+
+Entry moves from Pending to Checked-in.
+
+3.4 Advance Bookings
+
+Goal: Manage reservations made for future dates.
+
+Screen: “Bookings”
+
+Functions:
+
+Add Booking:
+
+Guest Name
+
+Mobile Number
+
+Email (optional)
+
+Check-in Date
+
+Check-out Date
+
+Room Type / Room
+
+Booking Source (Website / Phone / Walk-in / OTA)
+
+Notes (special requests)
+
+View list of upcoming bookings with filters:
+
+By date range
+
+By status (Confirmed / Pending / Cancelled)
+
+On the check-in date, confirmed bookings appear automatically in “Today’s Check-ins → Pending” so staff can convert them to actual stays (check-in).
+
+3.5 Billing & Invoices
+
+Goal: Generate bills and invoices for each stay.
+
+Screen: “Billing”
+
+For a checked-in guest:
+
+Display:
+
+Room Charges (nightly rate x number of nights)
+
+Extra Services (food, laundry, etc.)
+
+Taxes
+
+Discounts (if any)
+
+Actions:
+
+Generate Proforma Bill (pre-checkout)
+
+Generate Final Invoice (on checkout)
+
+Download PDF
+
+Send via Email / WhatsApp
+
+3.6 Soft Bill + Review Link (on Checkout)
+
+When a guest is checked-out:
+
+Hotelier clicks Checkout in the guest’s stay details.
+
+System:
+
+Marks the stay as checked-out.
+
+Frees up the room in inventory for future bookings.
+
+Generates final invoice (soft copy).
+
+System sends:
+
+Soft bill (PDF link or inline HTML) to guest’s email / WhatsApp / SMS.
+
+Review link to collect feedback (e.g., EaseInn review form or external platform).
+
+Guest can:
+
+View/download bill.
+
+Click review link and submit rating + comments.
+
+4. Guest Self Check-In Flow (QR / URL)
+
+This is the second flow you drew at the bottom of the page.
+
+Goal: Allow guests to initiate check-in themselves, directly from their phone, and create a record that appears automatically for the hotelier in the “Check-ins” tab and that day’s calendar.
+
+4.1 Entry: Scan QR / Open URL
+
+Each hotel has a unique QR code and URL generated in the Superadmin/Hotelier panel.
+
+QR code is printed and placed at:
+
+Reception
+
+Lobby
+
+Rooms (optional)
+
+Guest:
+
+Scans QR code or
+
+Types the URL (e.g., https://easeinn.app/hotel/<hotel-id>/checkin).
+
+4.2 Guest Check-In Page
+
+Page: “Guest Self Check-In”
+
+Displays hotel name and logo.
+
+Form fields (Mandatory info):
+
+Full Name
+
+Mobile Number (OTP optional, if you want verification)
+
+Email (optional)
+
+Number of Guests
+
+Check-in Date (default = today)
+
+Check-out Date (optional / estimated)
+
+Room Type (dropdown) or “Walk-in / Assign at reception”
+
+ID Type (Aadhaar, Passport, etc.)
+
+ID Number
+
+Upload ID photo (optional, if needed later)
+
+Purpose of Stay (Business / Leisure / Others)
+
+Buttons:
+
+Submit Check-In Request
+
+Terms/Privacy note.
+
+4.3 Creating the Entry
+
+On form submission:
+
+System validates required fields.
+
+Creates a new Pending Check-in Entry in the hotel’s database, linked to:
+
+Hotel ID
+
+Guest details
+
+Timestamp
+
+Status = Pending Approval.
+
+4.4 How It Reflects in Hotelier Panel
+
+Check-ins Tab
+
+The entry appears under:
+
+Today → Pending list with:
+
+Guest Name
+
+Arrival Time
+
+Number of Guests
+
+Room Type (if selected)
+
+Source = Self Check-In (QR/URL)
+
+Calendar View
+
+Under that day’s calendar, the guest appears:
+
+Either in a “unassigned” row
+
+Or under the selected room type without room number.
+
+Hotelier can click the entry, assign a room, and confirm check-in.
+
+4.5 Staff Confirmation
+
+Receptionist opens “Pending Check-ins”.
+
+Selects the guest who just submitted the form.
+
+Reviews details & verifies ID physically if required.
+
+Assigns a room (if not already).
+
+Clicks Confirm Check-In.
+
+Entry moves to Checked-in, room shows as occupied in inventory & calendar.

@@ -9,6 +9,9 @@ export const roomTypeEnum = pgEnum("room_type", ["standard", "deluxe", "suite"])
 export const purposeEnum = pgEnum("purpose", ["business", "leisure", "conference", "wedding", "other"]);
 export const paymentStatusEnum = pgEnum("payment_status", ["pending", "paid", "partial", "refunded"]);
 
+// Self check-in request status enum
+export const selfCheckInStatusEnum = pgEnum("self_checkin_status", ["pending", "approved", "rejected", "converted"]);
+
 // Channel Manager enums
 export const channelStatusEnum = pgEnum("channel_status", ["active", "inactive", "testing", "error"]);
 export const syncStatusEnum = pgEnum("sync_status", ["pending", "success", "failed", "partial"]);
@@ -198,6 +201,34 @@ export const hotels = pgTable("hotels", {
     enablePayments: true,
     currency: 'INR'
   }),
+  selfCheckInSlug: varchar("self_checkin_slug", { length: 100 }).unique(),
+  selfCheckInEnabled: boolean("self_checkin_enabled").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Self check-in requests from guests via QR code
+export const selfCheckInRequests = pgTable("self_checkin_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  hotelId: varchar("hotel_id").notNull().references(() => hotels.id),
+  fullName: text("full_name").notNull(),
+  phone: varchar("phone", { length: 20 }).notNull(),
+  email: varchar("email", { length: 255 }),
+  numberOfGuests: integer("number_of_guests").default(1),
+  numberOfMales: integer("number_of_males").default(0),
+  numberOfFemales: integer("number_of_females").default(0),
+  numberOfChildren: integer("number_of_children").default(0),
+  checkInDate: timestamp("check_in_date").notNull(),
+  checkOutDate: timestamp("check_out_date"),
+  preferredRoomType: roomTypeEnum("preferred_room_type"),
+  documentType: varchar("document_type", { length: 50 }),
+  documentNumber: varchar("document_number", { length: 50 }),
+  purposeOfVisit: purposeEnum("purpose_of_visit"),
+  specialRequests: text("special_requests"),
+  status: selfCheckInStatusEnum("status").notNull().default("pending"),
+  assignedRoomId: varchar("assigned_room_id").references(() => rooms.id),
+  convertedCheckInId: varchar("converted_checkin_id"),
+  processedBy: varchar("processed_by").references(() => users.id),
+  processedAt: timestamp("processed_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -343,6 +374,22 @@ export const hotelsRelations = relations(hotels, ({ many, one }) => ({
   }),
   rooms: many(rooms),
   invoices: many(invoices),
+  selfCheckInRequests: many(selfCheckInRequests),
+}));
+
+export const selfCheckInRequestsRelations = relations(selfCheckInRequests, ({ one }) => ({
+  hotel: one(hotels, {
+    fields: [selfCheckInRequests.hotelId],
+    references: [hotels.id],
+  }),
+  assignedRoom: one(rooms, {
+    fields: [selfCheckInRequests.assignedRoomId],
+    references: [rooms.id],
+  }),
+  processedByUser: one(users, {
+    fields: [selfCheckInRequests.processedBy],
+    references: [users.id],
+  }),
 }));
 
 export const guestsRelations = relations(guests, ({ many }) => ({
@@ -434,6 +481,19 @@ export const insertInvoiceSchema = createInsertSchema(invoices).omit({
   issuedAt: true,
 });
 
+export const insertSelfCheckInRequestSchema = createInsertSchema(selfCheckInRequests).omit({
+  id: true,
+  createdAt: true,
+  status: true,
+  processedBy: true,
+  processedAt: true,
+  convertedCheckInId: true,
+  assignedRoomId: true,
+}).extend({
+  checkInDate: z.union([z.date(), z.string().transform((str) => new Date(str))]),
+  checkOutDate: z.union([z.date(), z.string().transform((str) => new Date(str))]).optional(),
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type UpsertUser = typeof users.$inferInsert;
@@ -463,6 +523,9 @@ export const insertBookingSchema = createInsertSchema(bookings).omit({
 
 export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
 export type Invoice = typeof invoices.$inferSelect;
+
+export type InsertSelfCheckInRequest = z.infer<typeof insertSelfCheckInRequestSchema>;
+export type SelfCheckInRequest = typeof selfCheckInRequests.$inferSelect;
 
 export type InsertBooking = typeof bookings.$inferInsert;
 export type Booking = typeof bookings.$inferSelect;
