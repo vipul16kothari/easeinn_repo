@@ -1,6 +1,7 @@
 import { 
   users, rooms, guests, checkIns, hotels, invoices, bookings, bookingRooms,
   otaChannels, channelRatePlans, channelInventory, channelSyncLogs, channelRoomMapping, channelBookings,
+  hotelLeads, auditLogs,
   type User, type InsertUser,
   type Room, type InsertRoom,
   type Guest, type InsertGuest,
@@ -16,7 +17,9 @@ import {
   type ChannelBooking, type InsertChannelBooking,
   type ChannelRoomMapping, type InsertChannelRoomMapping,
   type ChannelSyncLog,
-  type OtaChannelWithRatePlans
+  type OtaChannelWithRatePlans,
+  type HotelLead, type InsertHotelLead,
+  type AuditLog, type InsertAuditLog
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, ilike, or, sql } from "drizzle-orm";
@@ -63,7 +66,7 @@ export interface IStorage {
   createBooking(booking: InsertBooking): Promise<Booking>;
   createBookingWithRooms(booking: InsertBooking, rooms: InsertBookingRoom[]): Promise<BookingWithRooms>;
   updateBookingStatus(id: string, status: string): Promise<Booking | undefined>;
-  getBookingsByDateRange(startDate: Date, endDate: Date, hotelId?: string): Promise<BookingWithRooms[]>;
+  getBookingsByDateRange(startDate: Date, endDate: Date, hotelId?: string): Promise<Booking[]>;
   
   // Invoice methods
   createInvoice(invoice: InsertInvoice): Promise<Invoice>;
@@ -104,6 +107,22 @@ export interface IStorage {
   
   getRoomsByHotelId(hotelId: string): Promise<Room[]>;
   getChannelAnalytics(hotelId: string): Promise<any>;
+  
+  // Hotel Lead methods
+  getLeads(filters?: { status?: string; limit?: number; offset?: number }): Promise<{ leads: HotelLead[], total: number }>;
+  getLead(id: string): Promise<HotelLead | undefined>;
+  createLead(lead: InsertHotelLead): Promise<HotelLead>;
+  updateLead(id: string, updates: Partial<HotelLead>): Promise<HotelLead>;
+  convertLeadToHotel(leadId: string, hotelData: InsertHotel, userData: InsertUser): Promise<{ hotel: Hotel; user: User }>;
+  
+  // User management methods
+  getUsers(filters?: { role?: string; isActive?: boolean; limit?: number; offset?: number }): Promise<{ users: User[], total: number }>;
+  updateUser(id: string, updates: Partial<User>): Promise<User>;
+  deactivateUser(id: string): Promise<User>;
+  
+  // Audit log methods
+  createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
+  getAuditLogs(filters?: { entityType?: string; hotelId?: string; userId?: string; limit?: number; offset?: number }): Promise<{ logs: AuditLog[], total: number }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -142,7 +161,7 @@ export class DatabaseStorage implements IStorage {
   async createHotel(hotel: InsertHotel): Promise<Hotel> {
     const [newHotel] = await db
       .insert(hotels)
-      .values(hotel)
+      .values(hotel as any)
       .returning();
     return newHotel;
   }
@@ -220,82 +239,57 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getGuests(search?: string, limit = 50, offset = 0, hotelId?: string): Promise<{ guests: (Guest & { room?: Room; checkInDate?: Date })[], total: number }> {
-    let baseConditions = [];
+    const selectFields = {
+      id: guests.id,
+      fullName: guests.fullName,
+      phone: guests.phone,
+      address: guests.address,
+      comingFrom: guests.comingFrom,
+      nationality: guests.nationality,
+      numberOfMales: guests.numberOfMales,
+      numberOfFemales: guests.numberOfFemales,
+      numberOfChildren: guests.numberOfChildren,
+      purposeOfVisit: guests.purposeOfVisit,
+      destination: guests.destination,
+      documentType: guests.documentType,
+      documentNumber: guests.documentNumber,
+      signature: guests.signature,
+      createdAt: guests.createdAt,
+      room: rooms,
+      checkInDate: checkIns.checkInDate,
+    };
+
+    let conditions: any[] = [];
     if (hotelId) {
-      baseConditions.push(eq(rooms.hotelId, hotelId));
+      conditions.push(eq(rooms.hotelId, hotelId));
     }
-
-    let baseQuery = db
-      .select({
-        id: guests.id,
-        fullName: guests.fullName,
-        phone: guests.phone,
-        address: guests.address,
-        comingFrom: guests.comingFrom,
-        nationality: guests.nationality,
-        numberOfMales: guests.numberOfMales,
-        numberOfFemales: guests.numberOfFemales,
-        numberOfChildren: guests.numberOfChildren,
-        purposeOfVisit: guests.purposeOfVisit,
-        destination: guests.destination,
-        documentType: guests.documentType,
-        documentNumber: guests.documentNumber,
-        signature: guests.signature,
-        createdAt: guests.createdAt,
-        room: rooms,
-        checkInDate: checkIns.checkInDate,
-      })
-      .from(guests)
-      .leftJoin(checkIns, and(eq(checkIns.guestId, guests.id), eq(checkIns.isActive, true)))
-      .leftJoin(rooms, eq(checkIns.roomId, rooms.id))
-      .orderBy(desc(guests.createdAt));
-
-    if (baseConditions.length > 0) {
-      baseQuery = baseQuery.where(and(...baseConditions));
-    }
-
-    let results;
     if (search) {
-      let searchConditions = [
+      conditions.push(
         or(
           ilike(guests.fullName, `%${search}%`),
           ilike(guests.phone, `%${search}%`)
         )
-      ];
-      if (baseConditions.length > 0) {
-        searchConditions.push(...baseConditions);
-      }
-      
-      results = await db
-        .select({
-          id: guests.id,
-          fullName: guests.fullName,
-          phone: guests.phone,
-          address: guests.address,
-          comingFrom: guests.comingFrom,
-          nationality: guests.nationality,
-          numberOfMales: guests.numberOfMales,
-          numberOfFemales: guests.numberOfFemales,
-          numberOfChildren: guests.numberOfChildren,
-          purposeOfVisit: guests.purposeOfVisit,
-          destination: guests.destination,
-          documentType: guests.documentType,
-          documentNumber: guests.documentNumber,
-          signature: guests.signature,
-          createdAt: guests.createdAt,
-          room: rooms,
-          checkInDate: checkIns.checkInDate,
-        })
-        .from(guests)
-        .leftJoin(checkIns, and(eq(checkIns.guestId, guests.id), eq(checkIns.isActive, true)))
-        .leftJoin(rooms, eq(checkIns.roomId, rooms.id))
-        .where(and(...searchConditions))
-        .orderBy(desc(guests.createdAt))
-        .limit(limit)
-        .offset(offset);
-    } else {
-      results = await baseQuery.limit(limit).offset(offset);
+      );
     }
+
+    const results = conditions.length > 0
+      ? await db
+          .select(selectFields)
+          .from(guests)
+          .leftJoin(checkIns, and(eq(checkIns.guestId, guests.id), eq(checkIns.isActive, true)))
+          .leftJoin(rooms, eq(checkIns.roomId, rooms.id))
+          .where(and(...conditions))
+          .orderBy(desc(guests.createdAt))
+          .limit(limit)
+          .offset(offset)
+      : await db
+          .select(selectFields)
+          .from(guests)
+          .leftJoin(checkIns, and(eq(checkIns.guestId, guests.id), eq(checkIns.isActive, true)))
+          .leftJoin(rooms, eq(checkIns.roomId, rooms.id))
+          .orderBy(desc(guests.createdAt))
+          .limit(limit)
+          .offset(offset);
 
     let totalCount;
     if (hotelId) {
@@ -430,18 +424,18 @@ export class DatabaseStorage implements IStorage {
     cleaning: number;
     maintenance: number;
   }> {
-    let query = db
-      .select({
-        status: rooms.status,
-        count: sql<number>`count(*)`
-      })
-      .from(rooms);
+    const conditions = hotelId ? [eq(rooms.hotelId, hotelId)] : [];
     
-    if (hotelId) {
-      query = query.where(eq(rooms.hotelId, hotelId));
-    }
+    const query = conditions.length > 0
+      ? db.select({ status: rooms.status, count: sql<number>`count(*)` })
+          .from(rooms)
+          .where(and(...conditions))
+          .groupBy(rooms.status)
+      : db.select({ status: rooms.status, count: sql<number>`count(*)` })
+          .from(rooms)
+          .groupBy(rooms.status);
     
-    const stats = await query.groupBy(rooms.status);
+    const stats = await query;
     
     const result = {
       available: 0,
@@ -469,6 +463,9 @@ export class DatabaseStorage implements IStorage {
         checkOutTime: checkIns.checkOutTime,
         actualCheckOutDate: checkIns.actualCheckOutDate,
         actualCheckOutTime: checkIns.actualCheckOutTime,
+        roomRate: checkIns.roomRate,
+        cgstRate: checkIns.cgstRate,
+        sgstRate: checkIns.sgstRate,
         totalAmount: checkIns.totalAmount,
         paymentStatus: checkIns.paymentStatus,
         isActive: checkIns.isActive,
@@ -495,6 +492,9 @@ export class DatabaseStorage implements IStorage {
       checkOutTime: result.checkOutTime,
       actualCheckOutDate: result.actualCheckOutDate,
       actualCheckOutTime: result.actualCheckOutTime,
+      roomRate: result.roomRate,
+      cgstRate: result.cgstRate,
+      sgstRate: result.sgstRate,
       totalAmount: result.totalAmount,
       paymentStatus: result.paymentStatus,
       isActive: result.isActive,
@@ -581,34 +581,31 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getBookingsByDateRange(startDate: Date, endDate: Date, hotelId?: string): Promise<Booking[]> {
-    let query = db.select().from(bookings).where(
-      and(
-        eq(bookings.bookingStatus, "confirmed"),
-        or(
-          and(
-            // Booking starts within range
-            sql`${bookings.checkInDate} >= ${startDate}`,
-            sql`${bookings.checkInDate} <= ${endDate}`
-          ),
-          and(
-            // Booking ends within range
-            sql`${bookings.checkOutDate} >= ${startDate}`,
-            sql`${bookings.checkOutDate} <= ${endDate}`
-          ),
-          and(
-            // Booking spans the entire range
-            sql`${bookings.checkInDate} <= ${startDate}`,
-            sql`${bookings.checkOutDate} >= ${endDate}`
-          )
+    const conditions = [
+      eq(bookings.bookingStatus, "confirmed"),
+      or(
+        and(
+          sql`${bookings.checkInDate} >= ${startDate}`,
+          sql`${bookings.checkInDate} <= ${endDate}`
+        ),
+        and(
+          sql`${bookings.checkOutDate} >= ${startDate}`,
+          sql`${bookings.checkOutDate} <= ${endDate}`
+        ),
+        and(
+          sql`${bookings.checkInDate} <= ${startDate}`,
+          sql`${bookings.checkOutDate} >= ${endDate}`
         )
       )
-    );
-
+    ];
+    
     if (hotelId) {
-      query = query.where(eq(bookings.hotelId, hotelId));
+      conditions.push(eq(bookings.hotelId, hotelId));
     }
 
-    return await query.orderBy(bookings.checkInDate);
+    return await db.select().from(bookings)
+      .where(and(...conditions))
+      .orderBy(bookings.checkInDate);
   }
 
   // Invoice methods
@@ -719,6 +716,150 @@ export class DatabaseStorage implements IStorage {
         total: 0,
         byChannel: {},
       },
+    };
+  }
+
+  // Hotel Lead methods
+  async getLeads(filters?: { status?: string; limit?: number; offset?: number }): Promise<{ leads: HotelLead[], total: number }> {
+    const limit = filters?.limit || 50;
+    const offset = filters?.offset || 0;
+    
+    let conditions: any[] = [];
+    if (filters?.status) {
+      conditions.push(eq(hotelLeads.status, filters.status as any));
+    }
+    
+    const results = conditions.length > 0
+      ? await db.select().from(hotelLeads).where(and(...conditions)).orderBy(desc(hotelLeads.createdAt)).limit(limit).offset(offset)
+      : await db.select().from(hotelLeads).orderBy(desc(hotelLeads.createdAt)).limit(limit).offset(offset);
+    
+    const countResult = conditions.length > 0
+      ? await db.select({ count: sql<number>`count(*)` }).from(hotelLeads).where(and(...conditions))
+      : await db.select({ count: sql<number>`count(*)` }).from(hotelLeads);
+    
+    return {
+      leads: results,
+      total: countResult[0].count
+    };
+  }
+
+  async getLead(id: string): Promise<HotelLead | undefined> {
+    const [lead] = await db.select().from(hotelLeads).where(eq(hotelLeads.id, id));
+    return lead || undefined;
+  }
+
+  async createLead(lead: InsertHotelLead): Promise<HotelLead> {
+    const [newLead] = await db.insert(hotelLeads).values(lead).returning();
+    return newLead;
+  }
+
+  async updateLead(id: string, updates: Partial<HotelLead>): Promise<HotelLead> {
+    const [updatedLead] = await db
+      .update(hotelLeads)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(hotelLeads.id, id))
+      .returning();
+    return updatedLead;
+  }
+
+  async convertLeadToHotel(leadId: string, hotelData: InsertHotel, userData: InsertUser): Promise<{ hotel: Hotel; user: User }> {
+    // Create user first
+    const [user] = await db.insert(users).values(userData).returning();
+    
+    // Create hotel with owner
+    const [hotel] = await db.insert(hotels).values({
+      ...hotelData,
+      ownerId: user.id
+    } as any).returning();
+    
+    // Update lead as converted
+    await db.update(hotelLeads).set({
+      status: "converted",
+      convertedHotelId: hotel.id,
+      convertedUserId: user.id,
+      updatedAt: new Date()
+    }).where(eq(hotelLeads.id, leadId));
+    
+    return { hotel, user };
+  }
+
+  // User management methods
+  async getUsers(filters?: { role?: string; isActive?: boolean; limit?: number; offset?: number }): Promise<{ users: User[], total: number }> {
+    const limit = filters?.limit || 50;
+    const offset = filters?.offset || 0;
+    
+    let conditions: any[] = [];
+    if (filters?.role) {
+      conditions.push(eq(users.role, filters.role as any));
+    }
+    if (filters?.isActive !== undefined) {
+      conditions.push(eq(users.isActive, filters.isActive));
+    }
+    
+    const results = conditions.length > 0
+      ? await db.select().from(users).where(and(...conditions)).orderBy(desc(users.createdAt)).limit(limit).offset(offset)
+      : await db.select().from(users).orderBy(desc(users.createdAt)).limit(limit).offset(offset);
+    
+    const countResult = conditions.length > 0
+      ? await db.select({ count: sql<number>`count(*)` }).from(users).where(and(...conditions))
+      : await db.select({ count: sql<number>`count(*)` }).from(users);
+    
+    return {
+      users: results,
+      total: countResult[0].count
+    };
+  }
+
+  async updateUser(id: string, updates: Partial<User>): Promise<User> {
+    const [updatedUser] = await db
+      .update(users)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return updatedUser;
+  }
+
+  async deactivateUser(id: string): Promise<User> {
+    const [deactivatedUser] = await db
+      .update(users)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return deactivatedUser;
+  }
+
+  // Audit log methods
+  async createAuditLog(log: InsertAuditLog): Promise<AuditLog> {
+    const [newLog] = await db.insert(auditLogs).values(log).returning();
+    return newLog;
+  }
+
+  async getAuditLogs(filters?: { entityType?: string; hotelId?: string; userId?: string; limit?: number; offset?: number }): Promise<{ logs: AuditLog[], total: number }> {
+    const limit = filters?.limit || 50;
+    const offset = filters?.offset || 0;
+    
+    let conditions: any[] = [];
+    if (filters?.entityType) {
+      conditions.push(eq(auditLogs.entityType, filters.entityType));
+    }
+    if (filters?.hotelId) {
+      conditions.push(eq(auditLogs.hotelId, filters.hotelId));
+    }
+    if (filters?.userId) {
+      conditions.push(eq(auditLogs.userId, filters.userId));
+    }
+    
+    const results = conditions.length > 0
+      ? await db.select().from(auditLogs).where(and(...conditions)).orderBy(desc(auditLogs.createdAt)).limit(limit).offset(offset)
+      : await db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt)).limit(limit).offset(offset);
+    
+    const countResult = conditions.length > 0
+      ? await db.select({ count: sql<number>`count(*)` }).from(auditLogs).where(and(...conditions))
+      : await db.select({ count: sql<number>`count(*)` }).from(auditLogs);
+    
+    return {
+      logs: results,
+      total: countResult[0].count
     };
   }
 }

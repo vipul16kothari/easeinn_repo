@@ -14,8 +14,14 @@ export const channelStatusEnum = pgEnum("channel_status", ["active", "inactive",
 export const syncStatusEnum = pgEnum("sync_status", ["pending", "success", "failed", "partial"]);
 export const bookingSourceEnum = pgEnum("booking_source", ["direct", "booking_com", "makemytrip", "agoda", "expedia", "goibibo", "cleartrip", "trivago", "traveloka", "airbnb"]);
 
-// User roles enum
-export const userRoleEnum = pgEnum("user_role", ["admin", "hotelier"]);
+// User roles enum - superadmin has full platform access, admin manages hotels, hotelier manages their property
+export const userRoleEnum = pgEnum("user_role", ["superadmin", "admin", "hotelier"]);
+
+// Lead status enum for hotel onboarding workflow
+export const leadStatusEnum = pgEnum("lead_status", ["new", "contacted", "qualified", "demo_scheduled", "trial_started", "converted", "rejected", "churned"]);
+
+// Subscription status enum
+export const subscriptionStatusEnum = pgEnum("subscription_status", ["trial", "active", "expired", "cancelled", "suspended"]);
 
 // Platform settings for admin configuration
 export const platformSettings = pgTable("platform_settings", {
@@ -50,7 +56,69 @@ export const users = pgTable("users", {
   role: userRoleEnum("role").notNull(),
   firstName: varchar("first_name", { length: 100 }),
   lastName: varchar("last_name", { length: 100 }),
+  phone: varchar("phone", { length: 20 }),
   isActive: boolean("is_active").default(true),
+  lastLoginAt: timestamp("last_login_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Hotel leads table for tracking self-onboarding and sales pipeline
+export const hotelLeads = pgTable("hotel_leads", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  // Contact Information
+  hotelName: varchar("hotel_name", { length: 255 }).notNull(),
+  contactName: varchar("contact_name", { length: 200 }).notNull(),
+  contactEmail: varchar("contact_email", { length: 255 }).notNull(),
+  contactPhone: varchar("contact_phone", { length: 20 }).notNull(),
+  // Hotel Details
+  hotelAddress: text("hotel_address"),
+  city: varchar("city", { length: 100 }),
+  state: varchar("state", { length: 100 }),
+  country: varchar("country", { length: 100 }).default("India"),
+  numberOfRooms: integer("number_of_rooms"),
+  // Google Places data (if available)
+  googlePlaceId: varchar("google_place_id", { length: 255 }),
+  googleRating: decimal("google_rating", { precision: 2, scale: 1 }),
+  // Lead Management
+  status: leadStatusEnum("status").notNull().default("new"),
+  source: varchar("source", { length: 100 }), // website, referral, google, facebook, etc.
+  assignedTo: varchar("assigned_to").references(() => users.id),
+  // Trial and Conversion
+  trialStartDate: timestamp("trial_start_date"),
+  trialEndDate: timestamp("trial_end_date"),
+  convertedHotelId: varchar("converted_hotel_id").references(() => hotels.id),
+  convertedUserId: varchar("converted_user_id").references(() => users.id),
+  // Notes and Communication
+  notes: text("notes"),
+  lastContactDate: timestamp("last_contact_date"),
+  nextFollowUpDate: timestamp("next_follow_up_date"),
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Audit logs for tracking all important actions
+export const auditLogs = pgTable("audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  // Who performed the action
+  userId: varchar("user_id").references(() => users.id),
+  userEmail: varchar("user_email", { length: 255 }),
+  userRole: varchar("user_role", { length: 50 }),
+  // What was affected
+  entityType: varchar("entity_type", { length: 100 }).notNull(), // hotel, user, booking, room, lead, etc.
+  entityId: varchar("entity_id", { length: 100 }),
+  hotelId: varchar("hotel_id").references(() => hotels.id),
+  // Action details
+  action: varchar("action", { length: 100 }).notNull(), // create, update, delete, login, logout, etc.
+  description: text("description"),
+  // Change tracking
+  previousData: json("previous_data"),
+  newData: json("new_data"),
+  // Request context
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  // Timestamp
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -315,7 +383,22 @@ export const invoicesRelations = relations(invoices, ({ one }) => ({
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
   isActive: true,
+  lastLoginAt: true,
+});
+
+export const insertHotelLeadSchema = createInsertSchema(hotelLeads).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  convertedHotelId: true,
+  convertedUserId: true,
+});
+
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
+  id: true,
+  createdAt: true,
 });
 
 export const insertHotelSchema = createInsertSchema(hotels).omit({
@@ -354,6 +437,10 @@ export const insertInvoiceSchema = createInsertSchema(invoices).omit({
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type UpsertUser = typeof users.$inferInsert;
+export type InsertHotelLead = z.infer<typeof insertHotelLeadSchema>;
+export type HotelLead = typeof hotelLeads.$inferSelect;
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertHotel = z.infer<typeof insertHotelSchema>;
 export type Hotel = typeof hotels.$inferSelect;
 export type InsertRoom = z.infer<typeof insertRoomSchema>;
