@@ -1678,6 +1678,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update hotel profile (for hoteliers to update their own hotel)
+  app.patch("/api/hotels/:id", authenticateToken, requireActiveHotel(storage), async (req: any, res) => {
+    try {
+      const hotelId = req.params.id;
+      const updates = req.body;
+      
+      // Hoteliers can only update their own hotel
+      if (req.user.role === "hotelier" && req.hotel?.id !== hotelId) {
+        return res.status(403).json({ message: "You can only update your own hotel" });
+      }
+      
+      // Restrict fields that hoteliers can update
+      const allowedFields = ["name", "address", "city", "state", "phone", "email", "gstNumber", "country", "pincode"];
+      const filteredUpdates: Record<string, any> = {};
+      
+      for (const key of allowedFields) {
+        if (updates[key] !== undefined) {
+          filteredUpdates[key] = updates[key];
+        }
+      }
+      
+      if (Object.keys(filteredUpdates).length === 0) {
+        return res.status(400).json({ message: "No valid fields to update" });
+      }
+      
+      const updatedHotel = await storage.updateHotel(hotelId, filteredUpdates);
+      
+      if (!updatedHotel) {
+        return res.status(404).json({ message: "Hotel not found" });
+      }
+      
+      res.json(updatedHotel);
+    } catch (error: any) {
+      console.error("Hotel update error:", error);
+      res.status(500).json({ message: error.message || "Failed to update hotel" });
+    }
+  });
+
   // Check room limit
   app.get("/api/subscription/check-room-limit", authenticateToken, async (req: any, res) => {
     try {

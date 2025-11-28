@@ -6,7 +6,8 @@ import { Separator } from "@/components/ui/separator";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { CreditCard, Receipt, Clock, CheckCircle, XCircle, IndianRupee } from "lucide-react";
+import { CreditCard, Receipt, Clock, CheckCircle, XCircle, IndianRupee, PartyPopper } from "lucide-react";
+import confetti from "canvas-confetti";
 
 interface Payment {
   id: string;
@@ -29,6 +30,24 @@ declare global {
 export default function Payments() {
   const { toast } = useToast();
   const [razorpayKey, setRazorpayKey] = useState("");
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [successPlanName, setSuccessPlanName] = useState("");
+
+  const triggerConfetti = () => {
+    const duration = 3000;
+    const animationEnd = Date.now() + duration;
+    const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+    const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
+
+    const interval = setInterval(() => {
+      const timeLeft = animationEnd - Date.now();
+      if (timeLeft <= 0) return clearInterval(interval);
+      const particleCount = 50 * (timeLeft / duration);
+      confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } });
+      confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } });
+    }, 250);
+  };
 
   // Fetch dynamic pricing configuration
   const { data: pricingConfig } = useQuery({
@@ -123,11 +142,15 @@ export default function Payments() {
           const result = await verifyResponse.json();
           
           if (result.status === 'success') {
+            setPaymentSuccess(true);
+            setSuccessPlanName(type);
+            triggerConfetti();
             toast({
-              title: "Payment Successful",
-              description: `Your payment has been processed successfully. Status: ${result.actualStatus || 'confirmed'}`,
+              title: "Payment Successful!",
+              description: `Your ${type} payment has been processed successfully.`,
             });
             queryClient.invalidateQueries({ queryKey: ["/api/payments/history"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
           } else if (result.status === 'failed') {
             toast({
               title: "Payment Failed",
@@ -151,11 +174,15 @@ export default function Payments() {
               
               if (statusResult.status === 'captured' || statusResult.status === 'success') {
                 clearInterval(pollStatus);
+                setPaymentSuccess(true);
+                setSuccessPlanName(type);
+                triggerConfetti();
                 toast({
-                  title: "Payment Confirmed",
-                  description: "Your payment has been successfully confirmed!",
+                  title: "Payment Confirmed!",
+                  description: "Your subscription has been activated successfully!",
                 });
                 queryClient.invalidateQueries({ queryKey: ["/api/payments/history"] });
+                queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
               } else if (statusResult.status === 'failed') {
                 clearInterval(pollStatus);
                 toast({
@@ -257,6 +284,29 @@ export default function Payments() {
           <p className="text-gray-600 mt-2">Manage subscriptions and payment history</p>
         </div>
       </div>
+
+      {paymentSuccess && (
+        <Card className="border-2 border-green-400 bg-gradient-to-r from-green-50 to-emerald-50" data-testid="payment-success-card">
+          <CardContent className="flex items-center justify-center py-8">
+            <div className="text-center space-y-4">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full animate-bounce">
+                <PartyPopper className="w-8 h-8 text-green-600" />
+              </div>
+              <h2 className="text-2xl font-bold text-green-700">Payment Successful!</h2>
+              <p className="text-green-600">
+                Your {successPlanName} subscription is now active. Thank you for choosing EaseInn!
+              </p>
+              <Button 
+                variant="outline" 
+                onClick={() => setPaymentSuccess(false)}
+                className="mt-4 border-green-500 text-green-700 hover:bg-green-50"
+              >
+                Continue to Dashboard
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Subscription Plans */}
       <div className="grid md:grid-cols-3 gap-6">
