@@ -376,8 +376,8 @@ export function authenticateToken(req: any, res: Response, next: NextFunction) {
 export function requireActiveHotel(storage: any) {
   return async (req: any, res: Response, next: NextFunction) => {
     try {
-      // Skip check for admin users
-      if (req.user?.role === "admin") {
+      // Skip check for admin and superadmin users
+      if (req.user?.role === "admin" || req.user?.role === "superadmin") {
         return next();
       }
 
@@ -416,15 +416,22 @@ export function requireActiveHotel(storage: any) {
 }
 
 // Role-based authorization middleware
-export function requireRole(roles: string[]) {
+export function requireRole(roles: string | string[]) {
+  const allowedRoles = Array.isArray(roles) ? roles : [roles];
+  
   return (req: any, res: Response, next: NextFunction) => {
     if (!req.user) {
       return res.status(401).json({ message: "Authentication required" });
     }
     
-    if (!roles.includes(req.user.role)) {
+    // SuperAdmin has access to everything
+    if (req.user.role === "superadmin") {
+      return next();
+    }
+    
+    if (!allowedRoles.includes(req.user.role)) {
       return res.status(403).json({ 
-        message: `Access denied. Required role: ${roles.join(" or ")}` 
+        message: `Access denied. Required role: ${allowedRoles.join(" or ")}` 
       });
     }
     
@@ -438,8 +445,8 @@ export function requireHotelOwner(req: any, res: Response, next: NextFunction) {
     return res.status(401).json({ message: "Authentication required" });
   }
   
-  // Admin can access any hotel, hotelier can only access their own
-  if (req.user.role === "admin") {
+  // Admin and SuperAdmin can access any hotel, hotelier can only access their own
+  if (req.user.role === "admin" || req.user.role === "superadmin") {
     return next();
   }
   
@@ -458,8 +465,8 @@ export function checkTrialExpiration(req: any, res: Response, next: NextFunction
     return next();
   }
   
-  // Admin users bypass trial checks
-  if (req.user.role === "admin") {
+  // Admin and SuperAdmin users bypass trial checks
+  if (req.user.role === "admin" || req.user.role === "superadmin") {
     return next();
   }
   

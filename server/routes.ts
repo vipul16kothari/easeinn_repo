@@ -85,22 +85,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const currentRooms = await storage.getRooms(roomData.hotelId);
       const currentRoomCount = currentRooms.length;
 
-      // Check subscription room limit first
-      const subRoomCheck = checkRoomLimit(hotel, currentRoomCount);
-      if (!subRoomCheck.allowed) {
-        return res.status(403).json({ 
-          message: subRoomCheck.reason,
-          limit: subRoomCheck.limit,
-          current: subRoomCheck.current
-        });
-      }
+      // SuperAdmin bypasses all room limits
+      const isSuperAdmin = req.user?.role === "superadmin";
+      
+      if (!isSuperAdmin) {
+        // Check subscription room limit first
+        const subRoomCheck = checkRoomLimit(hotel, currentRoomCount);
+        if (!subRoomCheck.allowed) {
+          return res.status(403).json({ 
+            message: subRoomCheck.reason,
+            limit: subRoomCheck.limit,
+            current: subRoomCheck.current
+          });
+        }
 
-      // Then check against hotel's enabled room limit (admin-configurable)
-      const enabledRoomsLimit = hotel.enabledRooms || hotel.maxRooms || 50;
-      if (currentRoomCount >= enabledRoomsLimit) {
-        return res.status(400).json({ 
-          message: `Cannot create room. Hotel has reached its room limit of ${enabledRoomsLimit} rooms. Please contact admin to increase capacity.` 
-        });
+        // Then check against hotel's enabled room limit (admin-configurable)
+        const enabledRoomsLimit = hotel.enabledRooms || hotel.maxRooms || 50;
+        if (currentRoomCount >= enabledRoomsLimit) {
+          return res.status(400).json({ 
+            message: `Cannot create room. Hotel has reached its room limit of ${enabledRoomsLimit} rooms. Please contact admin to increase capacity.` 
+          });
+        }
       }
       
       const validatedData = insertRoomSchema.parse(roomData);
