@@ -83,21 +83,10 @@ export default function MultiRoomBooking() {
       
       const totalAmount = data.rooms.reduce((sum, room) => sum + (room.roomRate * nights), 0);
 
-      const response = await fetch("/api/bookings/multi-room", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...data,
-          totalAmount,
-        }),
+      const response = await apiRequest("POST", "/api/bookings/multi-room", {
+        ...data,
+        totalAmount,
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to create multi-room booking");
-      }
 
       return response.json();
     },
@@ -135,7 +124,7 @@ export default function MultiRoomBooking() {
     }
 
     // Check admin settings for advance booking
-    if (hotelConfig.settings && !hotelConfig.settings.allowAdvanceBooking) {
+    if (config.settings && !config.settings.allowAdvanceBooking) {
       // Check if this is a same-day booking
       const daysDifference = Math.ceil((checkInDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
       if (daysDifference > 1) {
@@ -146,9 +135,9 @@ export default function MultiRoomBooking() {
         });
         return;
       }
-    } else if (hotelConfig.settings && hotelConfig.settings.advanceBookingDays) {
+    } else if (config.settings && config.settings.advanceBookingDays) {
       // Check advance booking days limit
-      const maxAdvanceDays = hotelConfig.settings.advanceBookingDays;
+      const maxAdvanceDays = config.settings.advanceBookingDays;
       const daysDifference = Math.ceil((checkInDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
       if (daysDifference > maxAdvanceDays) {
         toast({
@@ -387,7 +376,7 @@ export default function MultiRoomBooking() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {(hotelConfig.roomTypes || ["standard", "deluxe", "suite"]).map((roomType) => (
+                          {(config.roomTypes || ["standard", "deluxe", "suite"]).map((roomType) => (
                             <SelectItem key={roomType} value={roomType}>
                               {roomType.charAt(0).toUpperCase() + roomType.slice(1)} Room (₹{getRoomRate(roomType)}/night)
                             </SelectItem>

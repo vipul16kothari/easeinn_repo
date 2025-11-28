@@ -300,12 +300,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/bookings", async (req, res) => {
+  app.post("/api/bookings", authenticateToken, async (req: any, res) => {
     try {
-      // Add hotelId from first available hotel if missing (single-property setup)
+      // Get hotel ID from authenticated user
       let bookingData = { ...req.body };
-      if (!bookingData.hotelId) {
-        const hotels = await storage.getHotels();
+      if (!bookingData.hotelId && req.user) {
+        const hotels = await storage.getHotelsByOwnerId(req.user.userId);
         if (hotels.length === 0) {
           return res.status(400).json({ message: "No hotels found. Please create a hotel first." });
         }
@@ -326,12 +326,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Multi-room booking endpoint
-  app.post("/api/bookings/multi-room", async (req, res) => {
+  app.post("/api/bookings/multi-room", authenticateToken, async (req: any, res) => {
     try {
       const { guestName, guestPhone, guestEmail, checkInDate, checkOutDate, advanceAmount, totalAmount, specialRequests, rooms } = req.body;
 
-      // Add hotelId from first available hotel if missing (single-property setup)
-      const hotels = await storage.getHotels();
+      // Get hotel ID from authenticated user
+      const hotels = await storage.getHotelsByOwnerId(req.user.userId);
       if (hotels.length === 0) {
         return res.status(400).json({ message: "No hotels found. Please create a hotel first." });
       }
