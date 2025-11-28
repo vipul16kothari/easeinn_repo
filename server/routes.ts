@@ -364,6 +364,126 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update booking details
+  app.patch("/api/bookings/:id", authenticateToken, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { guestName, guestPhone, guestEmail, checkInDate, checkOutDate, roomType, roomNumber, roomRate, numberOfRooms, advanceAmount, specialRequests } = req.body;
+      
+      const existingBooking = await storage.getBooking(id);
+      if (!existingBooking) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+
+      // Only allow updates to confirmed bookings
+      if (existingBooking.bookingStatus !== "confirmed") {
+        return res.status(400).json({ message: "Can only update confirmed bookings" });
+      }
+
+      const updates: any = {};
+      if (guestName) updates.guestName = guestName;
+      if (guestPhone) updates.guestPhone = guestPhone;
+      if (guestEmail !== undefined) updates.guestEmail = guestEmail;
+      if (checkInDate) updates.checkInDate = new Date(checkInDate);
+      if (checkOutDate) updates.checkOutDate = new Date(checkOutDate);
+      if (roomType) updates.roomType = roomType;
+      if (roomNumber !== undefined) updates.roomNumber = roomNumber;
+      if (roomRate !== undefined) updates.roomRate = roomRate.toString();
+      if (numberOfRooms !== undefined) updates.numberOfRooms = numberOfRooms;
+      if (advanceAmount !== undefined) updates.advanceAmount = advanceAmount.toString();
+      if (specialRequests !== undefined) updates.specialRequests = specialRequests;
+      updates.updatedAt = new Date();
+
+      const updatedBooking = await storage.updateBooking(id, updates);
+      res.json(updatedBooking);
+    } catch (error) {
+      console.error("Update booking error:", error);
+      res.status(500).json({ message: "Failed to update booking" });
+    }
+  });
+
+  // Convert booking to check-in
+  app.post("/api/bookings/:id/checkin", authenticateToken, requireActiveHotel(storage), async (req: any, res) => {
+    try {
+      const bookingId = req.params.id;
+      const { roomId, documentType, documentNumber, signature } = req.body;
+      
+      const booking = await storage.getBooking(bookingId);
+      if (!booking) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+
+      if (booking.bookingStatus !== "confirmed") {
+        return res.status(400).json({ message: "Booking is not in confirmed status" });
+      }
+
+      if (!roomId) {
+        return res.status(400).json({ message: "Room selection is required" });
+      }
+
+      // Get room details
+      const room = await storage.getRoom(roomId);
+      if (!room) {
+        return res.status(404).json({ message: "Room not found" });
+      }
+
+      if (room.status !== "available") {
+        return res.status(400).json({ message: "Selected room is not available" });
+      }
+
+      // Create guest record from booking info
+      const guestData = {
+        fullName: booking.guestName,
+        phone: booking.guestPhone,
+        address: "",
+        comingFrom: "",
+        nationality: "Indian",
+        numberOfMales: 1,
+        numberOfFemales: 0,
+        numberOfChildren: 0,
+        purposeOfVisit: "business" as const,
+        destination: "",
+        documentType: documentType || "aadhar",
+        documentNumber: documentNumber || "",
+        signature: signature || null,
+      };
+
+      const guest = await storage.createGuest(guestData);
+
+      // Create check-in record
+      const checkInData = {
+        guestId: guest.id,
+        roomId: roomId,
+        hotelId: req.hotel?.id || booking.hotelId,
+        checkInDate: booking.checkInDate,
+        checkOutDate: booking.checkOutDate,
+        roomRate: booking.roomRate || room.basePrice || "2000",
+        cgstRate: "6",
+        sgstRate: "6",
+        advanceAmount: booking.advanceAmount || "0",
+        totalAmount: booking.totalAmount || "0",
+      };
+
+      const checkIn = await storage.createCheckIn(checkInData);
+
+      // Update room status
+      await storage.updateRoom(roomId, { status: "occupied" });
+
+      // Update booking status to checked_in
+      await storage.updateBookingStatus(bookingId, "checked_in");
+
+      res.status(201).json({
+        message: "Booking converted to check-in successfully",
+        checkIn,
+        guest,
+        room
+      });
+    } catch (error) {
+      console.error("Booking check-in error:", error);
+      res.status(500).json({ message: "Failed to convert booking to check-in" });
+    }
+  });
+
   app.get("/api/calendar/events", authenticateToken, requireActiveHotel(storage), async (req: any, res) => {
     try {
       const { start, end } = req.query;
@@ -855,18 +975,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Simple webhook endpoint for Razorpay
+  // Razorpay webhook endpoint
   app.post("/api/payments/webhook", async (req, res) => {
     try {
       const signature = req.headers['x-razorpay-signature'] as string;
       
       if (!signature) {
+        console.log("Webhook: Missing signature");
         return res.status(400).json({ message: "Missing signature" });
       }
 
       const body = JSON.stringify(req.body);
       
-      // Simple signature verification (you can enhance this later)
+      // Verify webhook signature
       const crypto = await import('crypto');
       const expectedSignature = crypto
         .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
@@ -874,23 +995,132 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .digest('hex');
 
       if (expectedSignature !== signature) {
+        console.log("Webhook: Invalid signature");
         return res.status(400).json({ message: "Invalid signature" });
       }
 
-      const webhookData = JSON.parse(body);
-      console.log(`Received webhook: ${webhookData.event}`);
+      const webhookData = req.body;
+      const event = webhookData.event;
+      console.log(`Webhook received: ${event}`);
 
-      // Handle payment status updates
-      if (webhookData.event === 'payment.captured' || webhookData.event === 'payment.authorized') {
-        console.log(`Payment captured: ${webhookData.payload.payment.entity.id}`);
-      } else if (webhookData.event === 'payment.failed') {
-        console.log(`Payment failed: ${webhookData.payload.payment.entity.id}`);
+      // Handle different payment events
+      if (event === 'payment.captured' || event === 'payment.authorized') {
+        const paymentEntity = webhookData.payload.payment.entity;
+        const paymentId = paymentEntity.id;
+        const orderId = paymentEntity.order_id;
+        const amount = paymentEntity.amount / 100; // Convert from paise
+        const notes = paymentEntity.notes || {};
+
+        console.log(`Payment ${event}: ${paymentId}, Order: ${orderId}, Amount: ₹${amount}`);
+
+        // Update payment record
+        await updatePaymentStatusFromWebhook(paymentId, 'captured', { 
+          signature, 
+          orderId,
+          amount 
+        });
+
+        // Handle subscription payments - update hotel subscription
+        if (notes.type === 'subscription' && notes.hotel_id) {
+          try {
+            const hotelId = notes.hotel_id;
+            const planName = notes.plan || 'standard';
+            
+            // Calculate subscription dates
+            const now = new Date();
+            const endDate = new Date(now);
+            endDate.setMonth(endDate.getMonth() + 1); // 1 month subscription
+            
+            // Update hotel subscription
+            await storage.updateHotel(hotelId, {
+              subscriptionPlan: planName,
+              subscriptionStartDate: now,
+              subscriptionEndDate: endDate,
+              isActive: true,
+            });
+
+            console.log(`Subscription activated for hotel ${hotelId}: ${planName} until ${endDate.toISOString()}`);
+
+            // Create audit log
+            await storage.createAuditLog({
+              entityType: "hotel",
+              entityId: hotelId,
+              action: "subscription_payment",
+              description: `Subscription payment of ₹${amount} for ${planName} plan`,
+              newData: { 
+                paymentId, 
+                amount, 
+                plan: planName,
+                subscriptionEndDate: endDate.toISOString() 
+              },
+              ipAddress: req.ip
+            });
+          } catch (subError) {
+            console.error("Error updating subscription:", subError);
+          }
+        }
+
+        // Handle booking payments
+        if (notes.type === 'booking' && notes.booking_id) {
+          try {
+            const bookingId = notes.booking_id;
+            
+            // Update booking payment status
+            await storage.updateBooking(bookingId, {
+              paymentStatus: "paid",
+              advanceAmount: amount.toString(),
+            });
+
+            console.log(`Booking payment recorded: ${bookingId}, Amount: ₹${amount}`);
+          } catch (bookingError) {
+            console.error("Error updating booking payment:", bookingError);
+          }
+        }
+
+      } else if (event === 'payment.failed') {
+        const paymentEntity = webhookData.payload.payment.entity;
+        const paymentId = paymentEntity.id;
+        const orderId = paymentEntity.order_id;
+        const errorCode = paymentEntity.error_code;
+        const errorDescription = paymentEntity.error_description;
+
+        console.log(`Payment failed: ${paymentId}, Order: ${orderId}, Error: ${errorCode} - ${errorDescription}`);
+
+        // Update payment record
+        await updatePaymentStatusFromWebhook(paymentId, 'failed', { 
+          signature, 
+          orderId,
+          errorCode,
+          errorDescription 
+        });
+
+      } else if (event === 'refund.created' || event === 'refund.processed') {
+        const refundEntity = webhookData.payload.refund.entity;
+        console.log(`Refund ${event}: ${refundEntity.id}, Amount: ₹${refundEntity.amount / 100}`);
+        
+        // Log refund for auditing
+        if (refundEntity.notes?.hotel_id) {
+          await storage.createAuditLog({
+            entityType: "payment",
+            entityId: refundEntity.payment_id,
+            action: "refund_processed",
+            description: `Refund of ₹${refundEntity.amount / 100} processed`,
+            newData: { 
+              refundId: refundEntity.id,
+              amount: refundEntity.amount / 100,
+              status: refundEntity.status 
+            },
+            ipAddress: req.ip
+          });
+        }
       }
 
-      res.json({ status: 'ok' });
+      // Always return 200 to acknowledge receipt
+      res.json({ status: 'ok', event });
     } catch (error: any) {
       console.error("Webhook error:", error);
-      res.status(500).json({ message: "Webhook failed" });
+      // Still return 200 to prevent Razorpay retries for processing errors
+      res.status(200).json({ status: 'error', message: error.message });
     }
   });
 

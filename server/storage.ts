@@ -44,6 +44,7 @@ export interface IStorage {
   getRoom(id: string): Promise<Room | undefined>;
   getRoomByNumber(number: string, hotelId?: string): Promise<Room | undefined>;
   createRoom(room: InsertRoom): Promise<Room>;
+  updateRoom(id: string, updates: Partial<Room>): Promise<Room | undefined>;
   updateRoomStatus(id: string, status: "available" | "occupied" | "cleaning" | "maintenance"): Promise<Room | undefined>;
   getAvailableRooms(hotelId?: string): Promise<Room[]>;
   
@@ -65,6 +66,7 @@ export interface IStorage {
   getBooking(id: string): Promise<BookingWithRooms | undefined>;
   createBooking(booking: InsertBooking): Promise<Booking>;
   createBookingWithRooms(booking: InsertBooking, rooms: InsertBookingRoom[]): Promise<BookingWithRooms>;
+  updateBooking(id: string, updates: Partial<Booking>): Promise<Booking | undefined>;
   updateBookingStatus(id: string, status: string): Promise<Booking | undefined>;
   getBookingsByDateRange(startDate: Date, endDate: Date, hotelId?: string): Promise<Booking[]>;
   
@@ -220,6 +222,15 @@ export class DatabaseStorage implements IStorage {
       .values(room)
       .returning();
     return newRoom;
+  }
+
+  async updateRoom(id: string, updates: Partial<Room>): Promise<Room | undefined> {
+    const [room] = await db
+      .update(rooms)
+      .set(updates)
+      .where(eq(rooms.id, id))
+      .returning();
+    return room || undefined;
   }
 
   async updateRoomStatus(id: string, status: "available" | "occupied" | "cleaning" | "maintenance"): Promise<Room | undefined> {
@@ -569,6 +580,15 @@ export class DatabaseStorage implements IStorage {
       ...newBooking,
       rooms: newRooms,
     };
+  }
+
+  async updateBooking(id: string, updates: Partial<Booking>): Promise<Booking | undefined> {
+    const [booking] = await db
+      .update(bookings)
+      .set(updates)
+      .where(eq(bookings.id, id))
+      .returning();
+    return booking || undefined;
   }
 
   async updateBookingStatus(id: string, status: string): Promise<Booking | undefined> {

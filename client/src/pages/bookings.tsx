@@ -10,11 +10,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Plus, Calendar, Phone, Mail, Users, IndianRupee } from "lucide-react";
+import { Plus, Calendar, Phone, Mail, Users, IndianRupee, LogIn, DoorOpen } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import type { Booking } from "@shared/schema";
+import type { Booking, Room } from "@shared/schema";
 
 const bookingSchema = z.object({
   guestName: z.string().min(1, "Guest name is required"),
@@ -36,9 +36,19 @@ export default function BookingsPage() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isCheckInDialogOpen, setIsCheckInDialogOpen] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [selectedRoomId, setSelectedRoomId] = useState<string>("");
+  const [documentType, setDocumentType] = useState("aadhar");
+  const [documentNumber, setDocumentNumber] = useState("");
 
   const { data: bookings = [], isLoading } = useQuery<Booking[]>({
     queryKey: ["/api/bookings"],
+  });
+
+  const { data: availableRooms = [] } = useQuery<Room[]>({
+    queryKey: ["/api/rooms/available"],
+    enabled: isCheckInDialogOpen,
   });
 
   const form = useForm<BookingFormData>({
@@ -117,6 +127,63 @@ export default function BookingsPage() {
       });
     },
   });
+
+  const checkInFromBookingMutation = useMutation({
+    mutationFn: async ({ bookingId, roomId, documentType, documentNumber }: { 
+      bookingId: string; 
+      roomId: string; 
+      documentType: string;
+      documentNumber: string;
+    }) => {
+      return await apiRequest("POST", `/api/bookings/${bookingId}/checkin`, { 
+        roomId, 
+        documentType, 
+        documentNumber 
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/rooms/available"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/checkins/active"] });
+      setIsCheckInDialogOpen(false);
+      setSelectedBooking(null);
+      setSelectedRoomId("");
+      setDocumentNumber("");
+      toast({
+        title: "Check-in successful",
+        description: "The guest has been checked in successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Check-in failed",
+        description: error.message || "Failed to check in guest. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleCheckInFromBooking = (booking: Booking) => {
+    setSelectedBooking(booking);
+    setIsCheckInDialogOpen(true);
+  };
+
+  const handleConfirmCheckIn = () => {
+    if (!selectedBooking || !selectedRoomId) {
+      toast({
+        title: "Error",
+        description: "Please select a room for check-in.",
+        variant: "destructive",
+      });
+      return;
+    }
+    checkInFromBookingMutation.mutate({
+      bookingId: selectedBooking.id,
+      roomId: selectedRoomId,
+      documentType,
+      documentNumber,
+    });
+  };
 
   const calculateTotal = () => {
     const checkIn = form.watch("checkInDate");
@@ -463,7 +530,7 @@ export default function BookingsPage() {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    {getRoomTypeIcon(booking.roomType)}
+                    {getRoomTypeIcon(booking.roomType || "standard")}
                     <CardTitle className="text-lg">{booking.guestName}</CardTitle>
                   </div>
                   <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(booking.bookingStatus)}`}>
@@ -501,7 +568,7 @@ export default function BookingsPage() {
                   </div>
                   <div className="flex items-center space-x-2">
                     <IndianRupee className="h-4 w-4 text-gray-500" />
-                    <span>₹{parseFloat(booking.roomRate).toFixed(0)}/night</span>
+                    <span>₹{parseFloat(booking.roomRate || "0").toFixed(0)}/night</span>
                   </div>
                   {booking.advanceAmount && parseFloat(booking.advanceAmount) > 0 && (
                     <div className="flex justify-between text-sm">
@@ -516,19 +583,27 @@ export default function BookingsPage() {
                 </div>
 
                 {booking.bookingStatus === "confirmed" && (
-                  <div className="pt-2">
+                  <div className="pt-2 flex gap-2">
+                    <Button 
+                      size="sm" 
+                      className="flex-1" 
+                      onClick={() => handleCheckInFromBooking(booking)}
+                      data-testid={`button-checkin-${booking.id}`}
+                    >
+                      <DoorOpen className="h-4 w-4 mr-1" />
+                      Check-In
+                    </Button>
                     <Select
                       value={booking.bookingStatus}
                       onValueChange={(value) => handleStatusChange(booking, value)}
                       disabled={updateBookingStatusMutation.isPending}
                     >
-                      <SelectTrigger className="w-full" data-testid={`select-status-${booking.id}`}>
-                        <SelectValue />
+                      <SelectTrigger className="w-24" data-testid={`select-status-${booking.id}`}>
+                        <SelectValue placeholder="Status" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="confirmed">Confirmed</SelectItem>
-                        <SelectItem value="checked_in">Checked In</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                        <SelectItem value="cancelled">Cancel</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -538,6 +613,120 @@ export default function BookingsPage() {
           ))}
         </div>
       )}
+
+      {/* Check-In from Booking Dialog */}
+      <Dialog open={isCheckInDialogOpen} onOpenChange={(open) => {
+        setIsCheckInDialogOpen(open);
+        if (!open) {
+          setSelectedBooking(null);
+          setSelectedRoomId("");
+          setDocumentNumber("");
+        }
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Check-In Guest</DialogTitle>
+            <DialogDescription>
+              Convert this booking to an active check-in by assigning a room.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedBooking && (
+            <div className="space-y-4">
+              <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Guest Name</span>
+                  <span className="font-medium">{selectedBooking.guestName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Phone</span>
+                  <span>{selectedBooking.guestPhone}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Check-In Date</span>
+                  <span>{new Date(selectedBooking.checkInDate).toLocaleDateString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Check-Out Date</span>
+                  <span>{new Date(selectedBooking.checkOutDate).toLocaleDateString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Room Type</span>
+                  <span className="capitalize">{selectedBooking.roomType}</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Select Room <span className="text-red-500">*</span></Label>
+                <Select value={selectedRoomId} onValueChange={setSelectedRoomId}>
+                  <SelectTrigger data-testid="select-room-for-checkin">
+                    <SelectValue placeholder="Choose an available room" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableRooms.filter(room => 
+                      room.type === selectedBooking.roomType || !selectedBooking.roomType
+                    ).map((room) => (
+                      <SelectItem key={room.id} value={room.id}>
+                        Room {room.number} - {room.type} (₹{room.basePrice}/night)
+                      </SelectItem>
+                    ))}
+                    {availableRooms.filter(room => 
+                      room.type === selectedBooking.roomType || !selectedBooking.roomType
+                    ).length === 0 && (
+                      <SelectItem value="no-rooms" disabled>
+                        No matching rooms available
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Document Type</Label>
+                  <Select value={documentType} onValueChange={setDocumentType}>
+                    <SelectTrigger data-testid="select-document-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="aadhar">Aadhar Card</SelectItem>
+                      <SelectItem value="passport">Passport</SelectItem>
+                      <SelectItem value="driving_license">Driving License</SelectItem>
+                      <SelectItem value="voter_id">Voter ID</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Document Number</Label>
+                  <Input 
+                    value={documentNumber} 
+                    onChange={(e) => setDocumentNumber(e.target.value)}
+                    placeholder="Enter number"
+                    data-testid="input-document-number"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsCheckInDialogOpen(false)}
+              data-testid="button-cancel-checkin"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleConfirmCheckIn}
+              disabled={checkInFromBookingMutation.isPending || !selectedRoomId}
+              data-testid="button-confirm-checkin"
+            >
+              {checkInFromBookingMutation.isPending ? "Processing..." : "Confirm Check-In"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
