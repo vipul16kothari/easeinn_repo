@@ -244,9 +244,9 @@ export default function BookingsPage() {
         <div className="flex space-x-2">
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" data-testid="button-add-booking">
+              <Button data-testid="button-add-booking">
                 <Plus className="h-4 w-4 mr-2" />
-                Single Room
+                Add Booking
               </Button>
             </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -498,14 +498,6 @@ export default function BookingsPage() {
             </Form>
           </DialogContent>
         </Dialog>
-        
-        <Button 
-          onClick={() => setLocation("/multi-room-booking")} 
-          data-testid="button-multi-room-booking"
-        >
-          <Users className="h-4 w-4 mr-2" />
-          Multi-Room Booking
-        </Button>
         </div>
       </div>
 

@@ -308,6 +308,42 @@ export function setupAuthRoutes(app: Express) {
       res.status(500).json({ message: "Failed to get user" });
     }
   });
+
+  // Update user profile
+  app.patch("/api/auth/profile", authenticateToken, async (req: any, res: Response) => {
+    try {
+      const { firstName, lastName, phone } = req.body;
+      const userId = req.user.userId;
+      
+      if (!firstName || !lastName) {
+        return res.status(400).json({ message: "First name and last name are required" });
+      }
+      
+      const updatedUser = await storage.updateUser(userId, {
+        firstName,
+        lastName,
+        phone: phone || null,
+      });
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json({
+        message: "Profile updated successfully",
+        user: {
+          id: updatedUser.id,
+          email: updatedUser.email,
+          firstName: updatedUser.firstName,
+          lastName: updatedUser.lastName,
+          role: updatedUser.role,
+        },
+      });
+    } catch (error) {
+      console.error("Profile update error:", error);
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
 }
 
 // Authentication middleware
@@ -347,10 +383,10 @@ export function requireActiveHotel(storage: any) {
 
       // For hoteliers, check if their hotel is active
       if (req.user?.role === "hotelier") {
-        const hotel = await storage.getHotelByOwnerId(req.user.id);
+        const hotel = await storage.getHotelByOwnerId(req.user.userId);
         
         if (!hotel) {
-          console.log(`No hotel found for hotelier user ID: ${req.user.id}`);
+          console.log(`No hotel found for hotelier user ID: ${req.user.userId}`);
           res.clearCookie("authToken");
           return res.status(403).json({ 
             message: "Hotel not found", 
@@ -359,7 +395,7 @@ export function requireActiveHotel(storage: any) {
         }
 
         if (!hotel.isActive) {
-          console.log(`Hotel ${hotel.name} (ID: ${hotel.id}) is deactivated. Logging out user ${req.user.id}`);
+          console.log(`Hotel ${hotel.name} (ID: ${hotel.id}) is deactivated. Logging out user ${req.user.userId}`);
           res.clearCookie("authToken");
           return res.status(403).json({ 
             message: "Hotel account has been deactivated", 

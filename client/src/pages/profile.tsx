@@ -1,10 +1,16 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useHotelConfig } from "@/hooks/useHotelConfig";
+import { useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { 
   User, 
   Hotel, 
@@ -20,6 +26,13 @@ import {
 export default function ProfilePage() {
   const { user, hotel } = useAuth();
   const { config } = useHotelConfig();
+  const { toast } = useToast();
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    firstName: "",
+    lastName: "",
+    phone: "",
+  });
 
   useEffect(() => {
     document.title = "Profile Settings - EaseInn Hotel Platform";
@@ -29,6 +42,50 @@ export default function ProfilePage() {
       metaDescription.setAttribute('content', 'Manage your hotel profile, subscription details, and account settings with EaseInn comprehensive hotel management platform.');
     }
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      setEditForm({
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        phone: user.phone || "",
+      });
+    }
+  }, [user]);
+
+  const updateProfileMutation = useMutation({
+    mutationFn: async (data: { firstName: string; lastName: string; phone: string }) => {
+      const response = await apiRequest("PATCH", "/api/auth/profile", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      setIsEditDialogOpen(false);
+      toast({
+        title: "Profile Updated",
+        description: "Your profile has been updated successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update profile. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSaveProfile = () => {
+    if (!editForm.firstName.trim() || !editForm.lastName.trim()) {
+      toast({
+        title: "Error",
+        description: "First name and last name are required.",
+        variant: "destructive",
+      });
+      return;
+    }
+    updateProfileMutation.mutate(editForm);
+  };
 
   const getSubscriptionStatus = () => {
     if (!hotel?.subscriptionEndDate) return { status: 'trial', color: 'blue', icon: Clock };
@@ -97,7 +154,12 @@ export default function ProfilePage() {
                 </Badge>
               </div>
               <Separator />
-              <Button variant="outline" className="w-full">
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => setIsEditDialogOpen(true)}
+                data-testid="button-edit-profile"
+              >
                 <Settings className="h-4 w-4 mr-2" />
                 Edit Profile
               </Button>
@@ -173,91 +235,115 @@ export default function ProfilePage() {
                         variant={subscriptionInfo.status === 'active' ? 'default' : 'secondary'}
                         className={`text-${subscriptionInfo.color}-700 bg-${subscriptionInfo.color}-50 border-${subscriptionInfo.color}-200`}
                       >
-                        {hotel.subscriptionPlan || 'Trial'} Plan
+                        {hotel.subscriptionPlan ? hotel.subscriptionPlan.charAt(0).toUpperCase() + hotel.subscriptionPlan.slice(1) : 'Trial'}
                       </Badge>
                     </div>
                   </div>
-                  
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">Monthly Rate</label>
-                      <p className="text-gray-900 font-medium">
-                        ₹{hotel.monthlyRate || '0'}/month
-                      </p>
-                    </div>
-                    
-                    {hotel.subscriptionStartDate && (
-                      <div>
-                        <label className="text-sm font-medium text-gray-600">Start Date</label>
-                        <p className="text-gray-900">
-                          {new Date(hotel.subscriptionStartDate).toLocaleDateString()}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {hotel.subscriptionEndDate && (
-                      <div>
-                        <label className="text-sm font-medium text-gray-600">End Date</label>
-                        <p className="text-gray-900">
-                          {new Date(hotel.subscriptionEndDate).toLocaleDateString()}
-                        </p>
-                      </div>
-                    )}
-                  </div>
+                  <p className="text-sm text-gray-600">
+                    {subscriptionInfo.status === 'trial' && 'You are on a 14-day free trial.'}
+                    {subscriptionInfo.status === 'active' && 'Your subscription is active.'}
+                    {subscriptionInfo.status === 'expiring' && 'Your subscription is expiring soon.'}
+                    {subscriptionInfo.status === 'expired' && 'Your subscription has expired.'}
+                  </p>
                 </div>
 
-                <div className="md:col-span-2">
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-gray-900 mb-3">Plan Features</h4>
-                    <ul className="space-y-2 text-sm text-gray-600">
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                        Room Management ({config.enabledRooms} rooms)
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                        Guest Check-in/Checkout
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                        Booking Management
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                        GST Invoice Generation
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                        Payment Processing
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                        Channel Manager Integration
-                      </li>
-                    </ul>
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Calendar className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm font-medium text-gray-600">Start Date</span>
                   </div>
+                  <p className="text-gray-900">
+                    {hotel.subscriptionStartDate 
+                      ? new Date(hotel.subscriptionStartDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                      : 'Not set'}
+                  </p>
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Calendar className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm font-medium text-gray-600">End Date</span>
+                  </div>
+                  <p className="text-gray-900">
+                    {hotel.subscriptionEndDate 
+                      ? new Date(hotel.subscriptionEndDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                      : 'Not set'}
+                  </p>
                 </div>
               </div>
 
               <Separator className="my-6" />
-              
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Button className="flex items-center gap-2">
-                  <CreditCard className="h-4 w-4" />
-                  Manage Subscription
-                </Button>
-                <Button variant="outline" className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  View Payment History
-                </Button>
-                <Button variant="outline">
-                  Upgrade Plan
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-gray-900">Upgrade Your Plan</p>
+                  <p className="text-sm text-gray-600">Get access to more features and rooms</p>
+                </div>
+                <Button onClick={() => window.location.href = '/payments'} data-testid="button-upgrade-plan">
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  View Plans
                 </Button>
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
+
+      {/* Edit Profile Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Profile</DialogTitle>
+            <DialogDescription>
+              Update your personal information below.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="firstName">First Name</Label>
+              <Input
+                id="firstName"
+                value={editForm.firstName}
+                onChange={(e) => setEditForm({ ...editForm, firstName: e.target.value })}
+                placeholder="Enter your first name"
+                data-testid="input-first-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lastName">Last Name</Label>
+              <Input
+                id="lastName"
+                value={editForm.lastName}
+                onChange={(e) => setEditForm({ ...editForm, lastName: e.target.value })}
+                placeholder="Enter your last name"
+                data-testid="input-last-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone Number</Label>
+              <Input
+                id="phone"
+                value={editForm.phone}
+                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                placeholder="Enter your phone number"
+                data-testid="input-phone"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSaveProfile}
+              disabled={updateProfileMutation.isPending}
+              data-testid="button-save-profile"
+            >
+              {updateProfileMutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
