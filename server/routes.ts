@@ -1356,12 +1356,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Amount and plan name are required" });
       }
 
-      // Get user's hotel (assuming single hotel per user for now)
-      const hotels = await storage.getHotels();
-      const userHotel = hotels.find(hotel => hotel.ownerId === req.user.id);
+      // Get user's hotel using proper method (use userId from JWT token)
+      const userHotel = await storage.getHotelByOwnerId(req.user.userId);
       
       if (!userHotel) {
-        return res.status(400).json({ message: "No hotel found for user" });
+        console.log(`No hotel found for user ${req.user.userId} (${req.user.email})`);
+        return res.status(400).json({ message: "No hotel found for user. Please ensure your account is linked to a hotel." });
       }
 
       const order = await createSubscriptionOrder(userHotel.id, amount, planName);
@@ -1381,12 +1381,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Amount, booking ID and guest name are required" });
       }
 
-      // Get user's hotel
-      const hotels = await storage.getHotels();
-      const userHotel = hotels.find(hotel => hotel.ownerId === req.user.id);
+      // Get user's hotel using proper method (use userId from JWT token)
+      const userHotel = await storage.getHotelByOwnerId(req.user.userId);
       
       if (!userHotel) {
-        return res.status(400).json({ message: "No hotel found for user" });
+        console.log(`No hotel found for user ${req.user.userId} (${req.user.email})`);
+        return res.status(400).json({ message: "No hotel found for user. Please ensure your account is linked to a hotel." });
       }
 
       const order = await createBookingOrder(userHotel.id, amount, bookingId, guestName);
@@ -1609,12 +1609,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get payment history for hotel
   app.get("/api/payments/history", authenticateToken, async (req: any, res) => {
     try {
-      // Get user's hotel
-      const hotels = await storage.getHotels();
-      const userHotel = hotels.find(hotel => hotel.ownerId === req.user.id);
+      // Get user's hotel using proper method (use userId from JWT token)
+      const userHotel = await storage.getHotelByOwnerId(req.user.userId);
       
       if (!userHotel) {
-        return res.status(400).json({ message: "No hotel found for user" });
+        // Return empty array instead of error for better UX
+        return res.json([]);
       }
 
       const payments = await getHotelPayments(userHotel.id);
