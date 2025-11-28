@@ -2,15 +2,17 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useHotelConfig } from "@/hooks/useHotelConfig";
 import { useMutation } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { QRCodeSVG } from "qrcode.react";
 import { 
   User, 
   Hotel, 
@@ -20,7 +22,12 @@ import {
   Crown,
   CheckCircle,
   Clock,
-  AlertCircle
+  AlertCircle,
+  QrCode,
+  Copy,
+  Download,
+  RefreshCw,
+  Loader2
 } from "lucide-react";
 
 export default function ProfilePage() {
@@ -33,6 +40,13 @@ export default function ProfilePage() {
     lastName: "",
     phone: "",
   });
+  const [selfCheckInEnabled, setSelfCheckInEnabled] = useState(false);
+
+  useEffect(() => {
+    if (hotel) {
+      setSelfCheckInEnabled(hotel.selfCheckInEnabled ?? true);
+    }
+  }, [hotel]);
 
   useEffect(() => {
     document.title = "Profile Settings - EaseInn Hotel Platform";
@@ -85,6 +99,85 @@ export default function ProfilePage() {
       return;
     }
     updateProfileMutation.mutate(editForm);
+  };
+
+  const generateQrSlugMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/hotel/generate-qr-slug");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      toast({
+        title: "QR Code Generated",
+        description: "Your self check-in QR code has been generated successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate QR code.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const toggleSelfCheckInMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const response = await apiRequest("PATCH", "/api/hotel/self-checkin-settings", { enabled });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setSelfCheckInEnabled(data.selfCheckInEnabled);
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      toast({
+        title: data.selfCheckInEnabled ? "Self Check-in Enabled" : "Self Check-in Disabled",
+        description: data.selfCheckInEnabled 
+          ? "Guests can now use the QR code to submit check-in requests." 
+          : "Self check-in has been disabled for your hotel.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update settings.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleCopyLink = () => {
+    if (hotel?.selfCheckInSlug) {
+      const url = `${window.location.origin}/checkin/${hotel.selfCheckInSlug}`;
+      navigator.clipboard.writeText(url);
+      toast({
+        title: "Link Copied",
+        description: "Self check-in link copied to clipboard.",
+      });
+    }
+  };
+
+  const handleDownloadQR = () => {
+    const svg = document.getElementById("qr-code-svg");
+    if (svg) {
+      const svgData = new XMLSerializer().serializeToString(svg);
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      const img = new Image();
+      img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx?.drawImage(img, 0, 0);
+        const pngUrl = canvas.toDataURL("image/png");
+        const downloadLink = document.createElement("a");
+        downloadLink.href = pngUrl;
+        downloadLink.download = `${hotel?.name || "hotel"}-qr-code.png`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+      };
+      img.src = "data:image/svg+xml;base64," + btoa(svgData);
+    }
   };
 
   const getSubscriptionStatus = () => {
@@ -287,6 +380,134 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* QR Code Self Check-in Card */}
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <QrCode className="h-5 w-5" />
+              QR Code Self Check-in
+            </CardTitle>
+            <CardDescription>
+              Allow guests to submit check-in requests by scanning a QR code
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* QR Code Display */}
+              <div className="flex flex-col items-center">
+                {hotel.selfCheckInSlug ? (
+                  <>
+                    <div className="bg-white p-4 rounded-lg shadow-md mb-4">
+                      <QRCodeSVG
+                        id="qr-code-svg"
+                        value={`${window.location.origin}/checkin/${hotel.selfCheckInSlug}`}
+                        size={200}
+                        level="H"
+                        includeMargin={true}
+                      />
+                    </div>
+                    <p className="text-sm text-gray-600 text-center mb-4">
+                      Scan this code to open the self check-in form
+                    </p>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={handleCopyLink} data-testid="button-copy-qr-link">
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copy Link
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={handleDownloadQR} data-testid="button-download-qr">
+                        <Download className="h-4 w-4 mr-2" />
+                        Download
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-8">
+                    <QrCode className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-600 mb-4">No QR code generated yet</p>
+                    <Button 
+                      onClick={() => generateQrSlugMutation.mutate()}
+                      disabled={generateQrSlugMutation.isPending}
+                      data-testid="button-generate-qr"
+                    >
+                      {generateQrSlugMutation.isPending ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <QrCode className="h-4 w-4 mr-2" />
+                          Generate QR Code
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* Settings */}
+              <div className="space-y-6">
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Check-in Link</h4>
+                  {hotel.selfCheckInSlug ? (
+                    <div className="flex items-center gap-2">
+                      <Input 
+                        readOnly 
+                        value={`${window.location.origin}/checkin/${hotel.selfCheckInSlug}`}
+                        className="font-mono text-sm"
+                        data-testid="input-qr-url"
+                      />
+                      <Button 
+                        variant="outline" 
+                        size="icon"
+                        onClick={() => generateQrSlugMutation.mutate()}
+                        disabled={generateQrSlugMutation.isPending}
+                        title="Regenerate QR Code"
+                        data-testid="button-regenerate-qr"
+                      >
+                        <RefreshCw className={`h-4 w-4 ${generateQrSlugMutation.isPending ? 'animate-spin' : ''}`} />
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">Generate a QR code to get your check-in link</p>
+                  )}
+                </div>
+
+                <Separator />
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="self-checkin-toggle" className="font-medium">Enable Self Check-in</Label>
+                    <p className="text-sm text-gray-600">
+                      When enabled, guests can submit check-in requests using the QR code
+                    </p>
+                  </div>
+                  <Switch
+                    id="self-checkin-toggle"
+                    checked={selfCheckInEnabled}
+                    onCheckedChange={(checked) => toggleSelfCheckInMutation.mutate(checked)}
+                    disabled={toggleSelfCheckInMutation.isPending}
+                    data-testid="switch-self-checkin"
+                  />
+                </div>
+
+                <Separator />
+
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">How it works</h4>
+                  <ol className="text-sm text-gray-600 space-y-2 list-decimal list-inside">
+                    <li>Print and display the QR code at your reception or entrance</li>
+                    <li>Guests scan the code with their phone camera</li>
+                    <li>They fill out the check-in form with their details</li>
+                    <li>You receive the request in your dashboard for approval</li>
+                    <li>Assign a room and complete the check-in</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Edit Profile Dialog */}
