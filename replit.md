@@ -15,7 +15,18 @@ The platform provides enterprise-level hotel management functionality including:
 - Landing page with B2B pricing and registration flow
 - Responsive design optimized for desktop and tablet usage
 
-## Recent Changes (August 22, 2025)
+## Recent Changes (November 28, 2025)
+- **DigiStay-Inspired Landing Page Redesign**: Complete redesign with clean, customer-friendly UI
+- **Glassmorphism Header**: Fixed position header with blur effect and purple color scheme
+- **Interactive Feature Tabs**: 8 feature categories with dynamic content switching
+- **Product Mockup**: Visual room management dashboard preview
+- **Statistics Section**: Impact metrics display (80%, 50%, 90%)
+- **Simplified Pricing**: Clean single-card pricing layout
+- **Purple Gradient CTA**: Modern call-to-action section
+- **Newsletter Signup**: Footer newsletter subscription form
+- **Property Discovery Flow**: New DigiStay-inspired onboarding with Google Places integration
+
+## Previous Changes (August 22, 2025)
 - **Platform Rebranding**: Updated to EaseInn with new domain www.EaseInn.com
 - **SEO-Optimized URL Structure**: Comprehensive URL strategy with best practices
 - **Room Capacity Enforcement**: Backend validation prevents exceeding admin-set limits
