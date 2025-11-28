@@ -20,7 +20,9 @@ import {
   BedDouble,
   Loader2,
   QrCode,
-  ArrowRight
+  ArrowRight,
+  FileText,
+  Eye
 } from "lucide-react";
 
 interface SelfCheckInRequest {
@@ -38,6 +40,7 @@ interface SelfCheckInRequest {
   preferredRoomType: string | null;
   documentType: string | null;
   documentNumber: string | null;
+  documentImage: string | null;
   purposeOfVisit: string | null;
   specialRequests: string | null;
   status: "pending" | "approved" | "rejected" | "converted";
@@ -278,7 +281,7 @@ export default function PendingCheckInRequests() {
           </DialogHeader>
           
           {selectedRequest && (
-            <div className="space-y-4 py-4">
+            <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
               <div className="bg-gray-50 rounded-lg p-4">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
@@ -291,7 +294,9 @@ export default function PendingCheckInRequests() {
                   </div>
                   <div>
                     <span className="text-gray-500">Guests:</span>
-                    <p className="font-medium">{selectedRequest.numberOfGuests}</p>
+                    <p className="font-medium">
+                      {selectedRequest.numberOfGuests} ({selectedRequest.numberOfMales}M, {selectedRequest.numberOfFemales}F, {selectedRequest.numberOfChildren}C)
+                    </p>
                   </div>
                   <div>
                     <span className="text-gray-500">Check-in Date:</span>
@@ -299,8 +304,43 @@ export default function PendingCheckInRequests() {
                       {new Date(selectedRequest.checkInDate).toLocaleDateString('en-IN')}
                     </p>
                   </div>
+                  {selectedRequest.documentType && (
+                    <div>
+                      <span className="text-gray-500">Document:</span>
+                      <p className="font-medium capitalize">{selectedRequest.documentType.replace('_', ' ')}</p>
+                    </div>
+                  )}
+                  {selectedRequest.purposeOfVisit && (
+                    <div>
+                      <span className="text-gray-500">Purpose:</span>
+                      <p className="font-medium capitalize">{selectedRequest.purposeOfVisit}</p>
+                    </div>
+                  )}
                 </div>
               </div>
+
+              {selectedRequest.documentImage && (
+                <div className="border rounded-lg p-3">
+                  <p className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Uploaded Document
+                  </p>
+                  {selectedRequest.documentImage.startsWith('data:image') ? (
+                    <img 
+                      src={selectedRequest.documentImage} 
+                      alt="ID Document" 
+                      className="max-w-full h-auto rounded border max-h-48 object-contain"
+                    />
+                  ) : (
+                    <div className="flex items-center gap-2 text-sm text-blue-600">
+                      <FileText className="h-5 w-5" />
+                      <a href={selectedRequest.documentImage} target="_blank" rel="noopener noreferrer" className="underline">
+                        View PDF Document
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
               
               <div>
                 <label className="text-sm font-medium mb-2 block">Select Room *</label>

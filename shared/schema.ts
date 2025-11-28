@@ -222,6 +222,7 @@ export const selfCheckInRequests = pgTable("self_checkin_requests", {
   preferredRoomType: roomTypeEnum("preferred_room_type"),
   documentType: varchar("document_type", { length: 50 }),
   documentNumber: varchar("document_number", { length: 50 }),
+  documentImage: text("document_image"),
   purposeOfVisit: purposeEnum("purpose_of_visit"),
   specialRequests: text("special_requests"),
   status: selfCheckInStatusEnum("status").notNull().default("pending"),

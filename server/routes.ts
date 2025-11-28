@@ -163,6 +163,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         preferredRoomType: validatedData.preferredRoomType as any || null,
         documentType: validatedData.documentType || null,
         documentNumber: null,
+        documentImage: validatedData.documentImage || null,
         purposeOfVisit: validatedData.purposeOfVisit as any || null,
         specialRequests: validatedData.specialRequests || null,
         status: "pending"
@@ -295,17 +296,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create guest record
       const guest = await storage.createGuest({
-        hotelId: request.hotelId,
         fullName: request.fullName,
         phone: request.phone,
-        email: request.email,
+        address: request.specialRequests || "Self Check-in",
+        comingFrom: "Self Check-in",
+        nationality: "Indian",
         numberOfMales: request.numberOfMales || 0,
         numberOfFemales: request.numberOfFemales || 0,
         numberOfChildren: request.numberOfChildren || 0,
-        documentType: request.documentType,
-        documentNumber: request.documentNumber,
-        purposeOfVisit: request.purposeOfVisit,
-        address: ""
+        documentType: request.documentType || undefined,
+        documentNumber: request.documentNumber || undefined,
+        purposeOfVisit: request.purposeOfVisit || undefined
       });
       
       // Create check-in record
