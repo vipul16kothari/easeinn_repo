@@ -28,7 +28,7 @@ const registrationSchema = z.object({
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
-  role: z.enum(["admin", "hotelier"]),
+  role: z.enum(["superadmin", "admin", "hotelier"]),
 });
 
 export function setupAuthRoutes(app: Express) {

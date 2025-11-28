@@ -1251,6 +1251,502 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // =====================================================
+  // SUPERADMIN ROUTES - Platform Management
+  // =====================================================
+
+  // Lead creation validation schema
+  const leadCreationSchema = z.object({
+    hotelName: z.string().min(1, "Hotel name is required"),
+    contactName: z.string().min(1, "Contact name is required"),
+    contactEmail: z.string().email("Valid email is required"),
+    contactPhone: z.string().min(10, "Valid phone number is required"),
+    hotelAddress: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    numberOfRooms: z.number().int().positive().optional().default(10),
+    notes: z.string().optional(),
+    source: z.string().optional().default("website"),
+  });
+
+  // Lead Management - Public endpoint for self-registration
+  app.post("/api/leads", async (req, res) => {
+    try {
+      const validatedData = leadCreationSchema.parse(req.body);
+
+      // Check if user with same email already exists
+      const existingUser = await storage.getUserByEmail(validatedData.contactEmail);
+      if (existingUser) {
+        return res.status(400).json({ message: "A user with this email already exists. Please login instead." });
+      }
+
+      // Check for duplicate lead using a more efficient query
+      const existingLeads = await storage.getLeads({ limit: 1 });
+      // We'll check in SQL if possible, but for now check the lead email with a helper
+      const leadData = {
+        hotelName: validatedData.hotelName,
+        contactName: validatedData.contactName,
+        contactEmail: validatedData.contactEmail,
+        contactPhone: validatedData.contactPhone,
+        hotelAddress: validatedData.hotelAddress,
+        city: validatedData.city,
+        state: validatedData.state,
+        numberOfRooms: validatedData.numberOfRooms,
+        notes: validatedData.notes,
+        source: validatedData.source,
+        status: "new" as const
+      };
+
+      const lead = await storage.createLead(leadData);
+      
+      res.status(201).json({ 
+        message: "Thank you for your interest! Our team will contact you shortly.",
+        lead: { id: lead.id, hotelName: lead.hotelName }
+      });
+    } catch (error: any) {
+      console.error("Lead creation error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: error.message || "Failed to submit inquiry" });
+    }
+  });
+
+  // SuperAdmin: Get all leads
+  app.get("/api/superadmin/leads", authenticateToken, requireRole("superadmin"), async (req: any, res) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+
+      const result = await storage.getLeads({ status, limit, offset });
+      res.json(result);
+    } catch (error: any) {
+      console.error("Get leads error:", error);
+      res.status(500).json({ message: "Failed to fetch leads" });
+    }
+  });
+
+  // SuperAdmin: Get single lead
+  app.get("/api/superadmin/leads/:id", authenticateToken, requireRole("superadmin"), async (req: any, res) => {
+    try {
+      const lead = await storage.getLead(req.params.id);
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      res.json(lead);
+    } catch (error: any) {
+      console.error("Get lead error:", error);
+      res.status(500).json({ message: "Failed to fetch lead" });
+    }
+  });
+
+  // Lead status update validation schema
+  const leadStatusUpdateSchema = z.object({
+    status: z.enum(["new", "contacted", "qualified", "demo_scheduled", "trial_started", "converted", "rejected", "churned"]).optional(),
+    notes: z.string().optional(),
+    assignedTo: z.string().optional(),
+  });
+
+  // SuperAdmin: Update lead status
+  app.patch("/api/superadmin/leads/:id", authenticateToken, requireRole("superadmin"), async (req: any, res) => {
+    try {
+      const validatedData = leadStatusUpdateSchema.parse(req.body);
+      const leadId = req.params.id;
+
+      const lead = await storage.getLead(leadId);
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+
+      const updates: any = {};
+      if (validatedData.status) updates.status = validatedData.status;
+      if (validatedData.notes !== undefined) updates.notes = validatedData.notes;
+      if (validatedData.assignedTo !== undefined) updates.assignedTo = validatedData.assignedTo;
+
+      const updatedLead = await storage.updateLead(leadId, updates);
+
+      // Create audit log
+      await storage.createAuditLog({
+        entityType: "hotel_lead",
+        entityId: leadId,
+        action: "status_update",
+        userId: req.user.userId,
+        userEmail: req.user.email,
+        previousData: { status: lead.status },
+        newData: { status: updates.status || lead.status },
+        ipAddress: req.ip
+      });
+
+      res.json(updatedLead);
+    } catch (error: any) {
+      console.error("Update lead error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update lead" });
+    }
+  });
+
+  // SuperAdmin: Convert lead to hotel and user
+  app.post("/api/superadmin/leads/:id/convert", authenticateToken, requireRole("superadmin"), async (req: any, res) => {
+    try {
+      const leadId = req.params.id;
+      const { subscriptionPlan, maxRooms, password } = req.body;
+
+      const lead = await storage.getLead(leadId);
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+
+      if (lead.status === "converted") {
+        return res.status(400).json({ message: "This lead has already been converted" });
+      }
+
+      // Check for existing user
+      const existingUser = await storage.getUserByEmail(lead.contactEmail);
+      if (existingUser) {
+        return res.status(400).json({ message: "A user with this email already exists" });
+      }
+
+      // Hash password (use provided or default)
+      const hashedPassword = await bcrypt.hash(password || "changeme123", 10);
+
+      // Create user data - split contact name into first/last name
+      const nameParts = lead.contactName.split(" ");
+      const firstName = nameParts[0] || lead.contactName;
+      const lastName = nameParts.slice(1).join(" ") || "";
+      
+      const userData = {
+        email: lead.contactEmail,
+        password: hashedPassword,
+        firstName,
+        lastName,
+        phone: lead.contactPhone,
+        role: "admin" as const,
+        isActive: true
+      };
+
+      // Create hotel data
+      const now = new Date();
+      const trialEnd = new Date(now);
+      trialEnd.setDate(trialEnd.getDate() + 14);
+
+      const hotelData = {
+        name: lead.hotelName,
+        address: lead.hotelAddress || "",
+        phone: lead.contactPhone,
+        email: lead.contactEmail,
+        city: lead.city,
+        state: lead.state,
+        subscriptionPlan: subscriptionPlan || "trial",
+        maxRooms: maxRooms || lead.numberOfRooms || 50,
+        enabledRooms: Math.min(maxRooms || lead.numberOfRooms || 50, 10),
+        subscriptionStartDate: now,
+        subscriptionEndDate: trialEnd,
+        monthlyRate: "0.00"
+      };
+
+      const result = await storage.convertLeadToHotel(leadId, hotelData, userData);
+
+      // Create audit log for lead conversion
+      await storage.createAuditLog({
+        entityType: "hotel_lead",
+        entityId: leadId,
+        action: "converted",
+        userId: req.user.userId,
+        userEmail: req.user.email,
+        hotelId: result.hotel.id,
+        description: `Lead "${lead.hotelName}" converted to hotel account`,
+        previousData: { status: lead.status },
+        newData: { 
+          status: "converted",
+          hotelId: result.hotel.id, 
+          userId: result.user.id,
+          hotelName: result.hotel.name,
+          userEmail: result.user.email
+        },
+        ipAddress: req.ip
+      });
+
+      res.status(201).json({
+        message: "Lead converted successfully",
+        hotel: { id: result.hotel.id, name: result.hotel.name },
+        user: { id: result.user.id, email: result.user.email },
+        credentials: {
+          email: lead.contactEmail,
+          temporaryPassword: password || "changeme123",
+          note: "Please ask the hotel owner to change their password on first login"
+        }
+      });
+    } catch (error: any) {
+      console.error("Convert lead error:", error);
+      res.status(500).json({ message: error.message || "Failed to convert lead" });
+    }
+  });
+
+  // SuperAdmin: Get all hotels
+  app.get("/api/superadmin/hotels", authenticateToken, requireRole("superadmin"), async (req: any, res) => {
+    try {
+      const hotels = await storage.getHotels();
+      res.json({ hotels, total: hotels.length });
+    } catch (error: any) {
+      console.error("Get all hotels error:", error);
+      res.status(500).json({ message: "Failed to fetch hotels" });
+    }
+  });
+
+  // SuperAdmin: Create hotel directly
+  app.post("/api/superadmin/hotels", authenticateToken, requireRole("superadmin"), async (req: any, res) => {
+    try {
+      const { hotel, owner } = req.body;
+
+      if (!hotel?.name || !hotel?.address || !owner?.email || !owner?.password) {
+        return res.status(400).json({ message: "Hotel name, address, owner email and password are required" });
+      }
+
+      // Check for existing user
+      const existingUser = await storage.getUserByEmail(owner.email);
+      if (existingUser) {
+        return res.status(400).json({ message: "A user with this email already exists" });
+      }
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(owner.password, 10);
+
+      // Create user
+      const userData = {
+        email: owner.email,
+        password: hashedPassword,
+        name: owner.name || hotel.name + " Owner",
+        phone: owner.phone || hotel.phone,
+        role: "admin" as const,
+        isActive: true
+      };
+
+      const user = await storage.createUser(userData);
+
+      // Create hotel
+      const now = new Date();
+      const trialEnd = new Date(now);
+      trialEnd.setDate(trialEnd.getDate() + 14);
+
+      const hotelData = {
+        name: hotel.name,
+        address: hotel.address,
+        phone: hotel.phone || "",
+        email: hotel.email || owner.email,
+        gstNumber: hotel.gstNumber,
+        panNumber: hotel.panNumber,
+        stateCode: hotel.stateCode,
+        city: hotel.city,
+        state: hotel.state,
+        ownerId: user.id,
+        subscriptionPlan: hotel.subscriptionPlan || "trial",
+        maxRooms: hotel.maxRooms || 50,
+        enabledRooms: hotel.enabledRooms || 10,
+        subscriptionStartDate: now,
+        subscriptionEndDate: trialEnd,
+        monthlyRate: hotel.monthlyRate || "0.00"
+      };
+
+      const newHotel = await storage.createHotel(hotelData);
+
+      // Create audit log
+      await storage.createAuditLog({
+        entityType: "hotel",
+        entityId: newHotel.id,
+        action: "created",
+        userId: req.user.userId,
+        newData: { hotelName: newHotel.name, ownerEmail: owner.email },
+        ipAddress: req.ip
+      });
+
+      res.status(201).json({
+        message: "Hotel created successfully",
+        hotel: newHotel,
+        user: { id: user.id, email: user.email, role: user.role }
+      });
+    } catch (error: any) {
+      console.error("Create hotel error:", error);
+      res.status(500).json({ message: error.message || "Failed to create hotel" });
+    }
+  });
+
+  // SuperAdmin: Update hotel
+  app.patch("/api/superadmin/hotels/:id", authenticateToken, requireRole("superadmin"), async (req: any, res) => {
+    try {
+      const hotelId = req.params.id;
+      const updates = req.body;
+
+      const hotel = await storage.getHotel(hotelId);
+      if (!hotel) {
+        return res.status(404).json({ message: "Hotel not found" });
+      }
+
+      const updatedHotel = await storage.updateHotel(hotelId, updates);
+
+      // Create audit log
+      await storage.createAuditLog({
+        entityType: "hotel",
+        entityId: hotelId,
+        action: "updated",
+        userId: req.user.userId,
+        previousData: hotel,
+        newData: updates,
+        ipAddress: req.ip
+      });
+
+      res.json(updatedHotel);
+    } catch (error: any) {
+      console.error("Update hotel error:", error);
+      res.status(500).json({ message: "Failed to update hotel" });
+    }
+  });
+
+  // SuperAdmin: Get all users
+  app.get("/api/superadmin/users", authenticateToken, requireRole("superadmin"), async (req: any, res) => {
+    try {
+      const role = req.query.role as string | undefined;
+      const isActive = req.query.isActive === "true" ? true : req.query.isActive === "false" ? false : undefined;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+
+      const result = await storage.getUsers({ role, isActive, limit, offset });
+      
+      // Remove passwords from response
+      const sanitizedUsers = result.users.map(({ password, ...user }: any) => user);
+      res.json({ users: sanitizedUsers, total: result.total });
+    } catch (error: any) {
+      console.error("Get users error:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  // SuperAdmin: Update user
+  app.patch("/api/superadmin/users/:id", authenticateToken, requireRole("superadmin"), async (req: any, res) => {
+    try {
+      const userId = req.params.id;
+      const { name, email, phone, role, isActive, password } = req.body;
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const updates: any = {};
+      if (name) updates.name = name;
+      if (email) updates.email = email;
+      if (phone !== undefined) updates.phone = phone;
+      if (role) updates.role = role;
+      if (isActive !== undefined) updates.isActive = isActive;
+      if (password) updates.password = await bcrypt.hash(password, 10);
+
+      const updatedUser = await storage.updateUser(userId, updates);
+
+      // Create audit log
+      await storage.createAuditLog({
+        entityType: "user",
+        entityId: userId,
+        action: "updated",
+        userId: req.user.userId,
+        previousData: { role: user.role, isActive: user.isActive },
+        newData: { role: updates.role, isActive: updates.isActive },
+        ipAddress: req.ip
+      });
+
+      const { password: _, ...sanitizedUser } = updatedUser;
+      res.json(sanitizedUser);
+    } catch (error: any) {
+      console.error("Update user error:", error);
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
+  // SuperAdmin: Deactivate user
+  app.delete("/api/superadmin/users/:id", authenticateToken, requireRole("superadmin"), async (req: any, res) => {
+    try {
+      const userId = req.params.id;
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Don't allow deactivating self
+      if (userId === req.user.userId) {
+        return res.status(400).json({ message: "Cannot deactivate your own account" });
+      }
+
+      const deactivatedUser = await storage.deactivateUser(userId);
+
+      // Create audit log
+      await storage.createAuditLog({
+        entityType: "user",
+        entityId: userId,
+        action: "deactivated",
+        userId: req.user.userId,
+        previousData: { isActive: true },
+        newData: { isActive: false },
+        ipAddress: req.ip
+      });
+
+      const { password: _, ...sanitizedUser } = deactivatedUser;
+      res.json({ message: "User deactivated", user: sanitizedUser });
+    } catch (error: any) {
+      console.error("Deactivate user error:", error);
+      res.status(500).json({ message: "Failed to deactivate user" });
+    }
+  });
+
+  // SuperAdmin: Get audit logs
+  app.get("/api/superadmin/audit-logs", authenticateToken, requireRole("superadmin"), async (req: any, res) => {
+    try {
+      const entityType = req.query.entityType as string | undefined;
+      const hotelId = req.query.hotelId as string | undefined;
+      const userId = req.query.userId as string | undefined;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+
+      const result = await storage.getAuditLogs({ entityType, hotelId, userId, limit, offset });
+      res.json(result);
+    } catch (error: any) {
+      console.error("Get audit logs error:", error);
+      res.status(500).json({ message: "Failed to fetch audit logs" });
+    }
+  });
+
+  // SuperAdmin: Platform statistics
+  app.get("/api/superadmin/stats", authenticateToken, requireRole("superadmin"), async (req: any, res) => {
+    try {
+      const [hotels, users, leads] = await Promise.all([
+        storage.getHotels(),
+        storage.getUsers({}),
+        storage.getLeads({})
+      ]);
+
+      const stats = {
+        totalHotels: hotels.length,
+        activeHotels: hotels.filter((h: any) => h.subscriptionPlan && h.subscriptionPlan !== "expired").length,
+        totalUsers: users.total,
+        activeUsers: users.users.filter((u: any) => u.isActive).length,
+        totalLeads: leads.total,
+        leadsByStatus: {
+          new: leads.leads.filter((l: any) => l.status === "new").length,
+          contacted: leads.leads.filter((l: any) => l.status === "contacted").length,
+          qualified: leads.leads.filter((l: any) => l.status === "qualified").length,
+          converted: leads.leads.filter((l: any) => l.status === "converted").length,
+          rejected: leads.leads.filter((l: any) => l.status === "rejected").length
+        }
+      };
+
+      res.json(stats);
+    } catch (error: any) {
+      console.error("Get stats error:", error);
+      res.status(500).json({ message: "Failed to fetch statistics" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

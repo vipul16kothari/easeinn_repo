@@ -27,6 +27,7 @@ import Refunds from "./pages/refunds";
 import SignupWithPayment from "./pages/signup-with-payment";
 import SignupPlaces from "./pages/signup-places";
 import PropertyDiscovery from "./pages/property-discovery";
+import SuperAdminDashboard from "./pages/superadmin-dashboard";
 import Header from "./components/header";
 
 function Router() {
@@ -52,6 +53,9 @@ function Router() {
         <div className="min-h-screen bg-gray-50">
           <AdminDashboard />
         </div>
+      </Route>
+      <Route path="/superadmin">
+        <SuperAdminDashboard />
       </Route>
       <Route path="/check-in">
         <div className="min-h-screen bg-gray-50">
