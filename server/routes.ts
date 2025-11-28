@@ -266,7 +266,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Convert approved request to full check-in
+  // Convert pending/approved request to full check-in (approve + convert in one step)
   app.post("/api/self-checkin-requests/:id/convert", authenticateToken, requireActiveHotel(storage), async (req: any, res) => {
     try {
       const { id } = req.params;
@@ -282,8 +282,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Unauthorized" });
       }
       
-      if (request.status !== "approved") {
-        return res.status(400).json({ message: "Only approved requests can be converted to check-ins" });
+      // Allow both pending and approved requests to be converted
+      if (request.status !== "approved" && request.status !== "pending") {
+        return res.status(400).json({ message: "This request has already been processed" });
       }
       
       // Verify room is available

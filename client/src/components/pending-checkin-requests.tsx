@@ -126,22 +126,6 @@ export default function PendingCheckInRequests() {
     updateRequestMutation.mutate({ id: request.id, status: "rejected" });
   };
 
-  const handleApproveAndAssign = () => {
-    if (!selectedRequest || !selectedRoomId) {
-      toast({
-        title: "Error",
-        description: "Please select a room to assign",
-        variant: "destructive"
-      });
-      return;
-    }
-    updateRequestMutation.mutate({ 
-      id: selectedRequest.id, 
-      status: "approved", 
-      assignedRoomId: selectedRoomId 
-    });
-  };
-
   const handleConvertToCheckIn = () => {
     if (!selectedRequest || !selectedRoomId) {
       toast({
@@ -340,21 +324,9 @@ export default function PendingCheckInRequests() {
             </div>
           )}
           
-          <DialogFooter className="flex-col sm:flex-row gap-2">
+          <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setIsApproveDialogOpen(false)}>
               Cancel
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={handleApproveAndAssign}
-              disabled={!selectedRoomId || updateRequestMutation.isPending}
-            >
-              {updateRequestMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Check className="h-4 w-4 mr-2" />
-              )}
-              Approve Only
             </Button>
             <Button
               onClick={handleConvertToCheckIn}
@@ -365,9 +337,9 @@ export default function PendingCheckInRequests() {
               {convertRequestMutation.isPending ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
-                <ArrowRight className="h-4 w-4 mr-2" />
+                <Check className="h-4 w-4 mr-2" />
               )}
-              Approve & Check-in Now
+              Approve & Check-in
             </Button>
           </DialogFooter>
         </DialogContent>
