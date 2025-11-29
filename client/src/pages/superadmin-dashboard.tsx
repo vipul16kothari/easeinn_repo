@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Building2, Users, TrendingUp, FileText, AlertCircle, Check, X, Clock, Phone, Mail, MapPin, Star, Calendar, ChevronRight, Shield, Activity, History } from "lucide-react";
+import { Building2, Users, TrendingUp, FileText, AlertCircle, Check, X, Clock, Phone, Mail, MapPin, Star, Calendar, ChevronRight, Shield, Activity, History, Key, Eye, EyeOff, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 
 interface PlatformStats {
@@ -452,55 +452,195 @@ function HotelsTable({ hotels }: { hotels: Hotel[] }) {
 }
 
 function UsersTable({ users }: { users: User[] }) {
+  const { toast } = useToast();
+  const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const queryClient = useQueryClient();
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: async ({ userId, password }: { userId: string; password: string }) => {
+      const response = await apiRequest("POST", `/api/superadmin/users/${userId}/reset-password`, { newPassword: password });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Password Reset",
+        description: `Password for ${data.email} has been reset successfully.`,
+      });
+      setResetPasswordUser(null);
+      setNewPassword("");
+      setConfirmPassword("");
+      queryClient.invalidateQueries({ queryKey: ["/api/superadmin/users"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Reset Failed",
+        description: error.message || "Failed to reset password",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleResetPassword = () => {
+    if (!resetPasswordUser) return;
+    if (newPassword.length < 8) {
+      toast({
+        title: "Invalid Password",
+        description: "Password must be at least 8 characters",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "Password Mismatch",
+        description: "Passwords do not match",
+        variant: "destructive",
+      });
+      return;
+    }
+    resetPasswordMutation.mutate({ userId: resetPasswordUser.id, password: newPassword });
+  };
+
   return (
-    <div className="rounded-md border">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b bg-muted/50">
-            <th className="p-3 text-left font-medium">User</th>
-            <th className="p-3 text-left font-medium">Role</th>
-            <th className="p-3 text-left font-medium">Status</th>
-            <th className="p-3 text-left font-medium">Joined</th>
-            <th className="p-3 text-left font-medium">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map((user) => (
-            <tr key={user.id} className="border-b hover:bg-muted/25" data-testid={`user-row-${user.id}`}>
-              <td className="p-3">
-                <div className="font-medium">
-                  {user.firstName} {user.lastName}
-                </div>
-                <div className="text-xs text-muted-foreground">{user.email}</div>
-              </td>
-              <td className="p-3">
-                <Badge variant={user.role === "superadmin" ? "default" : "secondary"}>
-                  {user.role}
-                </Badge>
-              </td>
-              <td className="p-3">
-                <Badge variant={user.isActive ? "outline" : "destructive"}>
-                  {user.isActive ? "Active" : "Inactive"}
-                </Badge>
-              </td>
-              <td className="p-3 text-xs">
-                {format(new Date(user.createdAt), "MMM d, yyyy")}
-              </td>
-              <td className="p-3">
-                <Button variant="outline" size="sm" data-testid={`btn-manage-user-${user.id}`}>
-                  Manage
-                </Button>
-              </td>
+    <>
+      <div className="rounded-md border">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b bg-muted/50">
+              <th className="p-3 text-left font-medium">User</th>
+              <th className="p-3 text-left font-medium">Role</th>
+              <th className="p-3 text-left font-medium">Status</th>
+              <th className="p-3 text-left font-medium">Joined</th>
+              <th className="p-3 text-left font-medium">Actions</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-      {users.length === 0 && (
-        <div className="text-center py-8 text-muted-foreground">
-          No users found
-        </div>
-      )}
-    </div>
+          </thead>
+          <tbody>
+            {users.map((user) => (
+              <tr key={user.id} className="border-b hover:bg-muted/25" data-testid={`user-row-${user.id}`}>
+                <td className="p-3">
+                  <div className="font-medium">
+                    {user.firstName} {user.lastName}
+                  </div>
+                  <div className="text-xs text-muted-foreground">{user.email}</div>
+                </td>
+                <td className="p-3">
+                  <Badge variant={user.role === "superadmin" ? "default" : "secondary"}>
+                    {user.role}
+                  </Badge>
+                </td>
+                <td className="p-3">
+                  <Badge variant={user.isActive ? "outline" : "destructive"}>
+                    {user.isActive ? "Active" : "Inactive"}
+                  </Badge>
+                </td>
+                <td className="p-3 text-xs">
+                  {format(new Date(user.createdAt), "MMM d, yyyy")}
+                </td>
+                <td className="p-3">
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        setResetPasswordUser(user);
+                        setNewPassword("");
+                        setConfirmPassword("");
+                      }}
+                      data-testid={`btn-reset-password-${user.id}`}
+                    >
+                      <Key className="h-3 w-3 mr-1" />
+                      Reset Password
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {users.length === 0 && (
+          <div className="text-center py-8 text-muted-foreground">
+            No users found
+          </div>
+        )}
+      </div>
+
+      <Dialog open={!!resetPasswordUser} onOpenChange={(open) => !open && setResetPasswordUser(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Key className="h-5 w-5 text-purple-600" />
+              Reset Password
+            </DialogTitle>
+            <DialogDescription>
+              Set a new password for <strong>{resetPasswordUser?.email}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">New Password</Label>
+              <div className="relative">
+                <Input
+                  id="newPassword"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter new password (min 8 characters)"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  data-testid="input-new-password"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Input
+                id="confirmPassword"
+                type={showPassword ? "text" : "password"}
+                placeholder="Confirm new password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                data-testid="input-confirm-password"
+              />
+            </div>
+
+            {newPassword && confirmPassword && newPassword !== confirmPassword && (
+              <p className="text-sm text-red-500">Passwords do not match</p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetPasswordUser(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleResetPassword}
+              disabled={resetPasswordMutation.isPending || !newPassword || newPassword !== confirmPassword}
+              className="bg-purple-600 hover:bg-purple-700"
+              data-testid="btn-confirm-reset-password"
+            >
+              {resetPasswordMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Key className="h-4 w-4 mr-2" />
+              )}
+              Reset Password
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

@@ -2828,6 +2828,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // SuperAdmin: Reset user password
+  app.post("/api/superadmin/users/:id/reset-password", authenticateToken, requireRole("superadmin"), async (req: any, res) => {
+    try {
+      const userId = req.params.id;
+      const { newPassword } = req.body;
+
+      if (!newPassword || newPassword.length < 8) {
+        return res.status(400).json({ message: "Password must be at least 8 characters" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await storage.updateUser(userId, { password: hashedPassword });
+
+      // Create audit log
+      await storage.createAuditLog({
+        entityType: "user",
+        entityId: userId,
+        action: "password_reset",
+        userId: req.user.userId,
+        description: `Password reset for user ${user.email} by superadmin`,
+        ipAddress: req.ip
+      });
+
+      res.json({ message: "Password reset successfully", email: user.email });
+    } catch (error: any) {
+      console.error("Reset password error:", error);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+
   // SuperAdmin: Deactivate user
   app.delete("/api/superadmin/users/:id", authenticateToken, requireRole("superadmin"), async (req: any, res) => {
     try {
