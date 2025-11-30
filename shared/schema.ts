@@ -60,6 +60,7 @@ export const users = pgTable("users", {
   firstName: varchar("first_name", { length: 100 }),
   lastName: varchar("last_name", { length: 100 }),
   phone: varchar("phone", { length: 20 }),
+  profileImageUrl: varchar("profile_image_url", { length: 500 }),
   isActive: boolean("is_active").default(true),
   lastLoginAt: timestamp("last_login_at"),
   createdAt: timestamp("created_at").defaultNow(),

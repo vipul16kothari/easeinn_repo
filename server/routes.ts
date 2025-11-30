@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import cookieParser from "cookie-parser";
 import { storage } from "./storage";
 import { setupAuthRoutes, authenticateToken, requireRole, checkTrialExpiration, requireActiveHotel } from "./auth";
+import { setupReplitAuth } from "./replitAuth";
 import bcrypt from "bcryptjs";
 import { insertGuestSchema, insertCheckInSchema, insertRoomSchema, insertBookingSchema } from "@shared/schema";
 import { z } from "zod";
@@ -31,7 +32,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Middleware
   app.use(cookieParser());
   
-  // Authentication routes
+  // Replit Auth (Google OAuth) routes - must be before other auth routes
+  await setupReplitAuth(app);
+  
+  // Password-based authentication routes (for superadmin)
   setupAuthRoutes(app);
   
   // Channel Manager routes

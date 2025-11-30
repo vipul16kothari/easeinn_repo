@@ -30,6 +30,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  upsertOAuthUser(userData: { id: string; email?: string | null; firstName?: string | null; lastName?: string | null; profileImageUrl?: string | null }): Promise<User>;
   
   // Hotel methods
   getHotel(id: string): Promise<Hotel | undefined>;
@@ -151,6 +152,39 @@ export class DatabaseStorage implements IStorage {
     const [user] = await db
       .insert(users)
       .values(insertUser)
+      .returning();
+    return user;
+  }
+
+  async upsertOAuthUser(userData: { id: string; email?: string | null; firstName?: string | null; lastName?: string | null; profileImageUrl?: string | null }): Promise<User> {
+    const existingUser = await this.getUser(userData.id);
+    
+    if (existingUser) {
+      const [updated] = await db
+        .update(users)
+        .set({
+          email: userData.email || existingUser.email,
+          firstName: userData.firstName || existingUser.firstName,
+          lastName: userData.lastName || existingUser.lastName,
+          profileImageUrl: userData.profileImageUrl || existingUser.profileImageUrl,
+        })
+        .where(eq(users.id, userData.id))
+        .returning();
+      return updated;
+    }
+    
+    const [user] = await db
+      .insert(users)
+      .values({
+        id: userData.id,
+        email: userData.email || "",
+        firstName: userData.firstName || "",
+        lastName: userData.lastName || "",
+        profileImageUrl: userData.profileImageUrl,
+        role: "hotelier",
+        isActive: true,
+        password: "",
+      })
       .returning();
     return user;
   }
