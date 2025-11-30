@@ -321,10 +321,32 @@ export function setupAuthRoutes(app: Express) {
     res.json({ message: "Logged out successfully" });
   });
 
-  // Get current user
-  app.get("/api/auth/me", authenticateToken, async (req: any, res: Response) => {
+  // Get current user - supports both JWT and session-based auth
+  app.get("/api/auth/me", async (req: any, res: Response) => {
     try {
-      const user = await storage.getUser(req.user.userId);
+      let userId: string | null = null;
+      
+      // Try JWT token first (for admin login)
+      const token = req.cookies?.authToken;
+      if (token) {
+        try {
+          const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+          userId = decoded.userId;
+        } catch (e) {
+          // Token invalid, try session
+        }
+      }
+      
+      // Try session-based auth (for Google OAuth via Replit Auth)
+      if (!userId && req.isAuthenticated && req.isAuthenticated() && req.user?.claims?.sub) {
+        userId = req.user.claims.sub;
+      }
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -335,11 +357,33 @@ export function setupAuthRoutes(app: Express) {
       if (user.role === "hotelier") {
         hotels = await storage.getHotelsByOwnerId(user.id);
         
+        // Auto-create hotel for existing users who don't have one
+        if (hotels.length === 0) {
+          const trialEndDate = new Date();
+          trialEndDate.setDate(trialEndDate.getDate() + 14);
+          
+          const newHotel = await storage.createHotel({
+            name: "My Hotel",
+            address: "Please update your address",
+            city: "",
+            state: "",
+            country: "India",
+            phone: "",
+            email: user.email || "",
+            ownerId: user.id,
+            enabledRooms: 10,
+            subscriptionPlan: "trial",
+            subscriptionStartDate: new Date(),
+            subscriptionEndDate: trialEndDate,
+          });
+          hotels = [newHotel];
+        }
+        
         // Check trial status for first hotel
         if (hotels.length > 0 && hotels[0].subscriptionPlan === "trial") {
           const hotel = hotels[0];
           const now = new Date();
-          const endDate = new Date(hotel.subscriptionEndDate);
+          const endDate = hotel.subscriptionEndDate ? new Date(hotel.subscriptionEndDate) : null;
           
           if (endDate) {
             const daysRemaining = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
@@ -362,6 +406,7 @@ export function setupAuthRoutes(app: Express) {
           firstName: user.firstName,
           lastName: user.lastName,
           role: user.role,
+          profileImageUrl: user.profileImageUrl,
         },
         hotel: hotels.length > 0 ? hotels[0] : null,
         hotels,
