@@ -93,13 +93,17 @@ export default function ProfileCompleteness() {
 
   if (!hotel) return null;
 
+  // Check if values are real data (not default placeholders)
+  const isValidName = hotel.name && hotel.name.trim() !== "" && hotel.name !== "My Hotel";
+  const isValidAddress = hotel.address && hotel.address.trim() !== "" && !hotel.address.includes("Please update");
+
   const profileItems: ProfileItem[] = [
     {
       id: "name",
       label: "Hotel Name",
       description: "Your property name",
       icon: <Building2 className="w-4 h-4" />,
-      completed: !!hotel.name && hotel.name.trim() !== "",
+      completed: isValidName,
       priority: 1,
       editable: true,
       fields: ["name"]
@@ -109,7 +113,7 @@ export default function ProfileCompleteness() {
       label: "Address",
       description: "Complete address with city and state",
       icon: <MapPin className="w-4 h-4" />,
-      completed: !!hotel.address && !!hotel.city && !!hotel.state,
+      completed: isValidAddress && !!hotel.city && !!hotel.state,
       priority: 2,
       editable: true,
       fields: ["address", "city", "state"]

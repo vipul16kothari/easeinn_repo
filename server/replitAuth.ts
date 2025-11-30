@@ -142,6 +142,28 @@ export async function setupReplitAuth(app: Express) {
       if (user.role === "hotelier") {
         hotels = await storage.getHotelsByOwnerId(user.id);
 
+        // Auto-create hotel for existing users who don't have one
+        if (hotels.length === 0) {
+          const trialEndDate = new Date();
+          trialEndDate.setDate(trialEndDate.getDate() + 14);
+          
+          const newHotel = await storage.createHotel({
+            name: "My Hotel",
+            address: "Please update your address",
+            city: "",
+            state: "",
+            country: "India",
+            phone: "",
+            email: user.email || "",
+            ownerId: user.id,
+            enabledRooms: 10,
+            subscriptionPlan: "trial",
+            subscriptionStartDate: new Date(),
+            subscriptionEndDate: trialEndDate,
+          });
+          hotels = [newHotel];
+        }
+
         if (hotels.length > 0 && hotels[0].subscriptionPlan === "trial") {
           const hotel = hotels[0];
           const now = new Date();

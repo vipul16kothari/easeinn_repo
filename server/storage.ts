@@ -209,6 +209,29 @@ export class DatabaseStorage implements IStorage {
         password: "",
       })
       .returning();
+    
+    // Auto-create a hotel for new hotelier users
+    if (user.role === "hotelier") {
+      const trialEndDate = new Date();
+      trialEndDate.setDate(trialEndDate.getDate() + 14); // 14-day trial
+      
+      await db.insert(hotels).values({
+        name: "My Hotel",
+        address: "Please update your address",
+        city: "",
+        state: "",
+        country: "India",
+        phone: "",
+        email: userData.email || "",
+        ownerId: user.id,
+        isActive: true,
+        enabledRooms: 10,
+        subscriptionPlan: "trial",
+        subscriptionStartDate: new Date(),
+        subscriptionEndDate: trialEndDate,
+      });
+    }
+    
     return user;
   }
 
