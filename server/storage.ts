@@ -157,22 +157,45 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertOAuthUser(userData: { id: string; email?: string | null; firstName?: string | null; lastName?: string | null; profileImageUrl?: string | null }): Promise<User> {
-    const existingUser = await this.getUser(userData.id);
+    // First check if user exists by OAuth ID
+    const existingUserById = await this.getUser(userData.id);
     
-    if (existingUser) {
+    if (existingUserById) {
       const [updated] = await db
         .update(users)
         .set({
-          email: userData.email || existingUser.email,
-          firstName: userData.firstName || existingUser.firstName,
-          lastName: userData.lastName || existingUser.lastName,
-          profileImageUrl: userData.profileImageUrl || existingUser.profileImageUrl,
+          email: userData.email || existingUserById.email,
+          firstName: userData.firstName || existingUserById.firstName,
+          lastName: userData.lastName || existingUserById.lastName,
+          profileImageUrl: userData.profileImageUrl || existingUserById.profileImageUrl,
+          lastLoginAt: new Date(),
         })
         .where(eq(users.id, userData.id))
         .returning();
       return updated;
     }
     
+    // Check if user exists by email (could be pre-registered superadmin)
+    if (userData.email) {
+      const existingUserByEmail = await this.getUserByEmail(userData.email);
+      if (existingUserByEmail) {
+        // Update existing user with OAuth ID and profile info
+        const [updated] = await db
+          .update(users)
+          .set({
+            id: userData.id, // Update to OAuth ID
+            firstName: userData.firstName || existingUserByEmail.firstName,
+            lastName: userData.lastName || existingUserByEmail.lastName,
+            profileImageUrl: userData.profileImageUrl || existingUserByEmail.profileImageUrl,
+            lastLoginAt: new Date(),
+          })
+          .where(eq(users.email, userData.email))
+          .returning();
+        return updated;
+      }
+    }
+    
+    // Create new user
     const [user] = await db
       .insert(users)
       .values({
