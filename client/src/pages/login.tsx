@@ -1,27 +1,9 @@
-import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Link, useLocation } from "wouter";
-import { useMutation } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Hotel, Eye, EyeOff } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-
-const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  role: z.enum(["hotelier", "admin"], {
-    required_error: "Please select your role",
-  }),
-});
-
-type LoginFormData = z.infer<typeof loginSchema>;
+import { Hotel, ArrowRight, Check } from "lucide-react";
+import { SiGoogle } from "react-icons/si";
 
 export default function Login() {
   useEffect(() => {
@@ -33,163 +15,62 @@ export default function Login() {
     }
   }, []);
 
-  const [, setLocation] = useLocation();
-  const { toast } = useToast();
-  const [showPassword, setShowPassword] = useState(false);
-
-  const form = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-      role: undefined,
-    },
-  });
-
-  const loginMutation = useMutation({
-    mutationFn: async (data: LoginFormData) => {
-      const response = await apiRequest("POST", "/api/auth/login", data);
-      return await response.json();
-    },
-    onSuccess: (result) => {
-      toast({
-        title: "Success",
-        description: "Logged in successfully",
-      });
-      
-      // Redirect based on role
-      if (form.getValues("role") === "admin") {
-        setLocation("/admin/dashboard");
-      } else {
-        // Check if hotelier has a linked hotel
-        if (!result.hotels || result.hotels.length === 0) {
-          // No hotel linked - redirect to property discovery
-          setLocation("/property-discovery");
-        } else {
-          setLocation("/dashboard");
-        }
-      }
-    },
-    onError: (error: any) => {
-      console.error("Login error:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Login failed. Please check your credentials.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const onSubmit = (data: LoginFormData) => {
-    loginMutation.mutate(data);
+  const handleGoogleLogin = () => {
+    window.location.href = "/api/login";
   };
 
+  const benefits = [
+    "Instant access to your dashboard",
+    "Secure Google authentication",
+    "No passwords to remember",
+    "Manage your hotel from anywhere"
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-4">
       <Card className="w-full max-w-md" data-testid="card-login">
         <CardHeader className="text-center">
           <div className="flex items-center justify-center space-x-2 mb-4">
-            <Hotel className="h-8 w-8 text-blue-600" />
-            <h1 className="text-2xl font-bold text-gray-900">EaseInn</h1>
+            <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-purple-400 rounded-xl flex items-center justify-center">
+              <Hotel className="h-7 w-7 text-white" />
+            </div>
           </div>
-          <CardTitle className="text-xl">Welcome Back</CardTitle>
-          <p className="text-gray-600">Sign in to your account</p>
+          <CardTitle className="text-2xl font-bold text-gray-900">EaseInn</CardTitle>
+          <p className="text-gray-600">Welcome to your hotel management platform</p>
         </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="role"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Login As</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} data-testid="select-role">
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select your role" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="hotelier">Hotel Manager</SelectItem>
-                        <SelectItem value="admin">System Admin</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email Address</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="Enter your email"
-                        {...field}
-                        data-testid="input-email"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Input
-                          type={showPassword ? "text" : "password"}
-                          placeholder="Enter your password"
-                          {...field}
-                          data-testid="input-password"
-                        />
-                        <button
-                          type="button"
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                          onClick={() => setShowPassword(!showPassword)}
-                          data-testid="button-toggle-password"
-                        >
-                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={loginMutation.isPending}
-                data-testid="button-login-submit"
-              >
-                {loginMutation.isPending ? "Signing In..." : "Sign In"}
-              </Button>
-            </form>
-          </Form>
-
-          <div className="text-center mt-6">
-            <p className="text-gray-600">
-              Don't have an account?{" "}
-              <Link href="/register" className="text-blue-600 hover:underline" data-testid="link-register">
-                Sign up here
-              </Link>
-            </p>
+        <CardContent className="space-y-6">
+          <div className="space-y-3">
+            {benefits.map((benefit, index) => (
+              <div key={index} className="flex items-center space-x-3 text-gray-600">
+                <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                <span className="text-sm">{benefit}</span>
+              </div>
+            ))}
           </div>
 
-          <div className="text-center mt-4">
-            <Link href="/" className="text-blue-600 hover:underline" data-testid="link-home">
+          <Button
+            onClick={handleGoogleLogin}
+            className="w-full bg-purple-600 hover:bg-purple-700 text-white py-6 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all"
+            data-testid="button-google-login"
+          >
+            <SiGoogle className="mr-3 h-5 w-5" />
+            Continue with Google
+            <ArrowRight className="ml-3 h-5 w-5" />
+          </Button>
+
+          <p className="text-center text-xs text-gray-500">
+            By continuing, you agree to our{" "}
+            <Link href="/terms" className="text-purple-600 hover:underline">
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy" className="text-purple-600 hover:underline">
+              Privacy Policy
+            </Link>
+          </p>
+
+          <div className="text-center pt-4 border-t">
+            <Link href="/" className="text-purple-600 hover:underline text-sm" data-testid="link-home">
               ← Back to Homepage
             </Link>
           </div>

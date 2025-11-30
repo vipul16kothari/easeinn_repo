@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "./pages/not-found";
 import Landing from "./pages/landing";
 import Login from "./pages/login";
+import AdminLogin from "./pages/admin-login";
 import Register from "./pages/register";
 import Dashboard from "./pages/dashboard";
 import AdminDashboard from "./pages/admin-dashboard";
@@ -26,7 +27,6 @@ import Contact from "./pages/contact";
 import Refunds from "./pages/refunds";
 import SignupWithPayment from "./pages/signup-with-payment";
 import SignupPlaces from "./pages/signup-places";
-import PropertyDiscovery from "./pages/property-discovery";
 import SuperAdminDashboard from "./pages/superadmin-dashboard";
 import GuestCheckIn from "./pages/guest-checkin";
 import Header from "./components/header";
@@ -37,11 +37,11 @@ function Router() {
       {/* Public routes */}
       <Route path="/" component={Landing} />
       <Route path="/login" component={Login} />
+      <Route path="/admin" component={AdminLogin} />
       <Route path="/register" component={Register} />
       <Route path="/signup" component={SignupPlaces} />
       <Route path="/signup/plans" component={SignupPlaces} />
       <Route path="/signup-old" component={SignupWithPayment} />
-      <Route path="/property-discovery" component={PropertyDiscovery} />
       <Route path="/checkin/:slug" component={GuestCheckIn} />
       
       {/* Authenticated routes with header */}

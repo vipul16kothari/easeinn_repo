@@ -143,7 +143,7 @@ export default function Landing() {
               className="bg-purple-600 hover:bg-purple-700 text-white rounded-full px-6 shadow-lg hover:shadow-xl transition-all"
               data-testid="button-get-started"
             >
-              Let's Talk!
+              Checkout Free Trial
             </Button>
           </Link>
         </div>
@@ -169,7 +169,7 @@ export default function Landing() {
                 className="bg-purple-600 hover:bg-purple-700 text-white text-lg px-10 py-6 rounded-full shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all"
                 data-testid="button-book-demo"
               >
-                Book Demo <ArrowRight className="ml-2 h-5 w-5" />
+                Checkout Free Trial <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
           </div>
@@ -513,7 +513,7 @@ export default function Landing() {
               className="bg-white text-purple-600 hover:bg-gray-50 border-0 px-8 py-6 text-lg rounded-full"
               data-testid="button-cta-demo"
             >
-              Book Demo
+              Checkout Free Trial
             </Button>
           </Link>
         </div>
