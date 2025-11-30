@@ -20,6 +20,13 @@ export const bookingSourceEnum = pgEnum("booking_source", ["direct", "booking_co
 // User roles enum - superadmin has full platform access, admin manages hotels, hotelier manages their property
 export const userRoleEnum = pgEnum("user_role", ["superadmin", "admin", "hotelier"]);
 
+// Sessions table for connect-pg-simple (express-session store)
+export const sessions = pgTable("sessions", {
+  sid: varchar("sid").primaryKey(),
+  sess: json("sess").notNull(),
+  expire: timestamp("expire", { precision: 6 }).notNull(),
+});
+
 // Lead status enum for hotel onboarding workflow
 export const leadStatusEnum = pgEnum("lead_status", ["new", "contacted", "qualified", "demo_scheduled", "trial_started", "converted", "rejected", "churned"]);
 
