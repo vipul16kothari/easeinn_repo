@@ -42,110 +42,11 @@ const AnimatedSection = ({ children, className = "", delay = 0 }: { children: Re
   );
 };
 
-const FeatureCard = ({ 
-  color, 
-  icon: Icon, 
-  title, 
-  description, 
-  progress,
-  index
-}: { 
-  color: string; 
-  icon: any; 
-  title: string; 
-  description: string;
-  progress: number;
-  index: number;
-}) => {
-  const colorClasses: Record<string, string> = {
-    amber: "bg-amber-400",
-    emerald: "bg-emerald-500",
-    rose: "bg-rose-500",
-    violet: "bg-violet-600",
-  };
-  
-  const outlineColors: Record<string, string> = {
-    amber: "border-amber-400",
-    emerald: "border-emerald-500",
-    rose: "border-rose-500",
-    violet: "border-violet-600",
-  };
-  
-  // Stagger each card's animation
-  const staggerDelay = index * 0.15;
-  const adjustedProgress = Math.max(0, Math.min(1, (progress - staggerDelay) / (1 - staggerDelay * 2)));
-  
-  // Animation phases
-  const isOutline = adjustedProgress < 0.3;
-  const isFilling = adjustedProgress >= 0.3 && adjustedProgress < 0.6;
-  const isExpanded = adjustedProgress >= 0.6;
-  
-  // Calculate values
-  const rotation = isExpanded ? 0 : 45 - (adjustedProgress * 75);
-  const scale = isExpanded ? 1 : 0.4 + (adjustedProgress * 0.6);
-  const fillOpacity = isFilling ? (adjustedProgress - 0.3) / 0.3 : isExpanded ? 1 : 0;
-  const contentOpacity = isExpanded ? Math.min(1, (adjustedProgress - 0.6) / 0.3) : 0;
-  
-  // Size transitions
-  const size = isExpanded ? 100 : 80;
-  
-  return (
-    <motion.div
-      className="flex flex-col items-center"
-      style={{
-        transform: `rotate(${rotation}deg) scale(${scale})`,
-        transformOrigin: "center center",
-      }}
-    >
-      <div 
-        className={`
-          relative overflow-hidden transition-all duration-500
-          ${isExpanded ? 'rounded-3xl w-56 md:w-64 h-72 md:h-80' : `rounded-2xl`}
-          ${isOutline ? `border-3 ${outlineColors[color]} bg-transparent` : colorClasses[color]}
-        `}
-        style={{
-          width: isExpanded ? undefined : `${size}px`,
-          height: isExpanded ? undefined : `${size}px`,
-          borderWidth: isOutline ? '3px' : '0',
-          opacity: fillOpacity > 0 || isOutline ? 1 : 0,
-        }}
-      >
-        {/* Filling animation */}
-        {isFilling && (
-          <div 
-            className={`absolute inset-0 ${colorClasses[color]} transition-all`}
-            style={{
-              clipPath: `inset(${100 - fillOpacity * 100}% 0 0 0)`,
-            }}
-          />
-        )}
-        
-        {/* Card Content - only visible when expanded */}
-        <motion.div 
-          className="absolute inset-0 p-6 flex flex-col justify-between text-white"
-          style={{ 
-            opacity: contentOpacity,
-            transform: `rotate(${-rotation}deg)`,
-          }}
-        >
-          <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-            <Icon className="w-7 h-7" />
-          </div>
-          <div>
-            <h3 className="text-xl md:text-2xl font-bold mb-2">{title}</h3>
-            <p className="text-white/90 text-sm md:text-base leading-relaxed">{description}</p>
-          </div>
-        </motion.div>
-      </div>
-    </motion.div>
-  );
-};
-
 const FeaturesSection = () => {
   const sectionRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
     target: sectionRef,
-    offset: ["start center", "center center"]
+    offset: ["start end", "end start"]
   });
   
   const [progress, setProgress] = useState(0);
@@ -157,70 +58,165 @@ const FeaturesSection = () => {
   const features = [
     { 
       color: "amber", 
+      bgClass: "bg-amber-400",
+      borderClass: "border-amber-400",
       icon: QrCode, 
       title: "QR Check-in", 
       description: "Guests scan, upload ID, and check themselves in. Zero queues, zero hassle." 
     },
     { 
       color: "emerald", 
+      bgClass: "bg-emerald-500",
+      borderClass: "border-emerald-500",
       icon: Calendar, 
       title: "Smart Bookings", 
       description: "Manage reservations and room assignments from one dashboard." 
     },
     { 
       color: "rose", 
+      bgClass: "bg-rose-500",
+      borderClass: "border-rose-500",
       icon: Receipt, 
       title: "GST Invoicing", 
       description: "Auto-generate GST-compliant invoices with proper tax calculations." 
     },
     { 
       color: "violet", 
+      bgClass: "bg-violet-600",
+      borderClass: "border-violet-600",
       icon: BarChart3, 
       title: "Live Analytics", 
       description: "Track occupancy and revenue trends with beautiful reports." 
     },
   ];
 
-  // Check if animation is complete
-  const isComplete = progress >= 0.95;
+  // Normalize progress to animation range (0.15 to 0.65 of scroll)
+  const animProgress = Math.min(1, Math.max(0, (progress - 0.15) / 0.5));
+
+  const getCardAnimation = (index: number) => {
+    // Stagger: each card starts 0.06 later in the animation
+    const stagger = index * 0.06;
+    const cardProgress = Math.min(1, Math.max(0, (animProgress - stagger) / (1 - stagger * 2)));
+    
+    // Phase 1 (0-0.25): Outlined diamonds
+    // Phase 2 (0.25-0.5): Fill with color + rotate
+    // Phase 3 (0.5-0.75): Expand size
+    // Phase 4 (0.75-1): Show content
+    
+    const rotation = Math.max(0, 45 * (1 - cardProgress * 2)); // 45° → 0° by 50%
+    const fillAmount = Math.min(1, Math.max(0, (cardProgress - 0.2) / 0.35)); // Fill 20%-55%
+    const scaleProgress = Math.min(1, Math.max(0, (cardProgress - 0.4) / 0.4)); // Scale 40%-80%
+    const contentOpacity = Math.min(1, Math.max(0, (cardProgress - 0.6) / 0.35)); // Content 60%-95%
+    
+    // Size interpolation: 70px → 280px width, 70px → 340px height
+    const width = 70 + scaleProgress * 210;
+    const height = 70 + scaleProgress * 270;
+    
+    return { rotation, fillAmount, scaleProgress, contentOpacity, width, height, cardProgress };
+  };
 
   return (
-    <section ref={sectionRef} className="py-32 bg-white relative" id="features">
-      <div className="container mx-auto px-6">
-        <AnimatedSection className="text-center mb-20">
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-black text-gray-900 leading-tight mb-4">
+    <section ref={sectionRef} className="relative bg-white" id="features" style={{ height: '250vh' }}>
+      {/* Sticky container */}
+      <div className="sticky top-0 h-screen flex flex-col items-center justify-center overflow-hidden">
+        {/* Title */}
+        <div className="text-center mb-12 px-6">
+          <motion.h2 
+            className="text-3xl md:text-5xl lg:text-6xl font-black text-gray-900 leading-tight mb-4"
+            style={{ opacity: Math.min(1, animProgress * 3) }}
+          >
             EaseInn isn't just software, it's your
-          </h2>
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-black leading-tight">
+          </motion.h2>
+          <motion.h2 
+            className="text-3xl md:text-5xl lg:text-6xl font-black leading-tight"
+            style={{ opacity: Math.min(1, animProgress * 3) }}
+          >
             <span className="bg-gradient-to-r from-violet-600 to-pink-500 bg-clip-text text-transparent">
               complete hotel command center.
             </span>
-          </h2>
-        </AnimatedSection>
+          </motion.h2>
+        </div>
 
-        <div className="flex flex-wrap justify-center items-center gap-4 md:gap-6 max-w-5xl mx-auto min-h-[400px]">
-          {features.map((feature, idx) => (
-            <FeatureCard
-              key={feature.title}
-              color={feature.color}
-              icon={feature.icon}
-              title={feature.title}
-              description={feature.description}
-              progress={progress}
-              index={idx}
-            />
-          ))}
+        {/* Cards Grid - Fixed 4 column layout */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 px-6 max-w-6xl mx-auto place-items-center">
+          {features.map((feature, idx) => {
+            const anim = getCardAnimation(idx);
+            const Icon = feature.icon;
+            
+            return (
+              <div 
+                key={feature.title}
+                className="flex items-center justify-center"
+                style={{ 
+                  width: '280px', 
+                  height: '340px',
+                }}
+              >
+                <motion.div
+                  className="relative flex items-center justify-center"
+                  style={{
+                    width: anim.width,
+                    height: anim.height,
+                    transform: `rotate(${anim.rotation}deg)`,
+                    transition: 'transform 0.1s ease-out',
+                  }}
+                >
+                  {/* Outline layer */}
+                  <div 
+                    className={`absolute inset-0 rounded-2xl border-[3px] ${feature.borderClass}`}
+                    style={{
+                      opacity: anim.fillAmount < 0.3 ? 1 - anim.fillAmount * 2 : 0,
+                      transform: `rotate(${anim.rotation > 0 ? 0 : -anim.rotation}deg)`,
+                    }}
+                  />
+                  
+                  {/* Fill layer */}
+                  <div 
+                    className={`absolute inset-0 rounded-2xl ${feature.bgClass}`}
+                    style={{
+                      clipPath: `inset(${Math.max(0, 100 - anim.fillAmount * 100)}% 0 0 0)`,
+                      opacity: anim.fillAmount > 0 ? 1 : 0,
+                    }}
+                  />
+                  
+                  {/* Solid background when filled */}
+                  <div 
+                    className={`absolute inset-0 rounded-3xl ${feature.bgClass}`}
+                    style={{
+                      opacity: anim.fillAmount >= 1 ? 1 : 0,
+                    }}
+                  />
+                  
+                  {/* Content - counter-rotated */}
+                  <div 
+                    className="absolute inset-0 p-5 md:p-6 flex flex-col justify-between text-white"
+                    style={{
+                      opacity: anim.contentOpacity,
+                      transform: `rotate(${-anim.rotation}deg)`,
+                    }}
+                  >
+                    <div className="w-12 h-12 md:w-14 md:h-14 bg-white/20 rounded-xl flex items-center justify-center">
+                      <Icon className="w-6 h-6 md:w-7 md:h-7" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg md:text-xl font-bold mb-1 md:mb-2">{feature.title}</h3>
+                      <p className="text-white/90 text-xs md:text-sm leading-relaxed">{feature.description}</p>
+                    </div>
+                  </div>
+                </motion.div>
+              </div>
+            );
+          })}
         </div>
         
-        {/* Scroll hint */}
-        {progress < 0.3 && (
+        {/* Scroll progress indicator */}
+        {animProgress < 0.15 && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex flex-col items-center mt-12 text-gray-400"
+            className="absolute bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center text-gray-400"
           >
-            <span className="text-sm mb-2">Scroll to see the magic</span>
+            <span className="text-sm mb-2">Scroll slowly to see the magic</span>
             <motion.div
               animate={{ y: [0, 8, 0] }}
               transition={{ duration: 1.5, repeat: Infinity }}
@@ -229,6 +225,14 @@ const FeaturesSection = () => {
             </motion.div>
           </motion.div>
         )}
+        
+        {/* Progress bar at bottom */}
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 w-48 h-1 bg-gray-200 rounded-full overflow-hidden">
+          <motion.div 
+            className="h-full bg-gradient-to-r from-amber-400 via-emerald-500 via-rose-500 to-violet-600 rounded-full"
+            style={{ width: `${animProgress * 100}%` }}
+          />
+        </div>
       </div>
     </section>
   );
