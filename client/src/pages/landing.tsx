@@ -2,8 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { motion, useScroll, useTransform, useInView } from "framer-motion";
+import { motion, useScroll, useTransform, useInView, useMotionValueEvent } from "framer-motion";
 import { 
   Hotel, 
   Users, 
@@ -43,36 +42,231 @@ const AnimatedSection = ({ children, className = "", delay = 0 }: { children: Re
   );
 };
 
-const FeatureCard = ({ color, icon: Icon, title, description, delay }: { color: string; icon: any; title: string; description: string; delay: number }) => {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-50px" });
-  
-  const colorClasses: Record<string, string> = {
-    amber: "bg-amber-400 hover:bg-amber-500",
-    emerald: "bg-emerald-500 hover:bg-emerald-600",
-    rose: "bg-rose-500 hover:bg-rose-600",
-    violet: "bg-violet-600 hover:bg-violet-700",
-    sky: "bg-sky-500 hover:bg-sky-600",
-    orange: "bg-orange-500 hover:bg-orange-600",
+const DiamondShape = ({ 
+  color, 
+  fillProgress, 
+  rotation,
+  scale,
+  icon: Icon,
+  title,
+  description,
+  showContent
+}: { 
+  color: string; 
+  fillProgress: number;
+  rotation: number;
+  scale: number;
+  icon: any;
+  title: string;
+  description: string;
+  showContent: boolean;
+}) => {
+  const colorMap: Record<string, { stroke: string; fill: string; bg: string }> = {
+    amber: { stroke: "#f59e0b", fill: "#fbbf24", bg: "bg-amber-400" },
+    emerald: { stroke: "#10b981", fill: "#34d399", bg: "bg-emerald-500" },
+    rose: { stroke: "#f43f5e", fill: "#fb7185", bg: "bg-rose-500" },
+    violet: { stroke: "#8b5cf6", fill: "#a78bfa", bg: "bg-violet-500" },
   };
+  
+  const colors = colorMap[color];
+  const cardHeight = 280 + (scale - 1) * 100;
   
   return (
     <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 100, scale: 0.9 }}
-      animate={isInView ? { opacity: 1, y: 0, scale: 1 } : { opacity: 0, y: 100, scale: 0.9 }}
-      transition={{ duration: 0.7, delay, ease: [0.25, 0.1, 0.25, 1] }}
-      whileHover={{ y: -10, transition: { duration: 0.3 } }}
-      className={`${colorClasses[color]} rounded-3xl p-8 text-white cursor-pointer transition-colors min-h-[320px] flex flex-col justify-between`}
+      className="relative flex flex-col items-center justify-center"
+      style={{ 
+        transform: `rotate(${rotation}deg) scale(${scale})`,
+        transformOrigin: "center center"
+      }}
     >
-      <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mb-6">
-        <Icon className="w-8 h-8" />
-      </div>
-      <div>
-        <h3 className="text-2xl font-bold mb-3">{title}</h3>
-        <p className="text-white/80 text-sm leading-relaxed">{description}</p>
+      {/* Diamond/Card shape */}
+      <div 
+        className={`relative transition-all duration-500 ${showContent ? 'rounded-3xl' : 'rounded-2xl'}`}
+        style={{
+          width: showContent ? '100%' : '120px',
+          height: showContent ? `${cardHeight}px` : '120px',
+          minWidth: showContent ? '200px' : '120px',
+          transform: showContent ? 'rotate(0deg)' : 'rotate(45deg)',
+        }}
+      >
+        {/* Outline version */}
+        <div 
+          className="absolute inset-0 rounded-2xl transition-opacity duration-300"
+          style={{
+            border: `3px solid ${colors.stroke}`,
+            opacity: fillProgress < 0.3 ? 1 : 0,
+            borderRadius: showContent ? '24px' : '16px',
+          }}
+        />
+        
+        {/* Filled version */}
+        <div 
+          className={`absolute inset-0 transition-all duration-500 ${showContent ? 'rounded-3xl' : 'rounded-2xl'}`}
+          style={{
+            backgroundColor: colors.fill,
+            opacity: fillProgress,
+            clipPath: fillProgress < 1 
+              ? `inset(${100 - fillProgress * 100}% 0 0 0)` 
+              : 'none',
+          }}
+        />
+        
+        {/* Full background when complete */}
+        {fillProgress >= 0.8 && (
+          <div 
+            className={`absolute inset-0 ${colors.bg} transition-opacity duration-500 ${showContent ? 'rounded-3xl' : 'rounded-2xl'}`}
+            style={{ opacity: fillProgress >= 0.8 ? 1 : 0 }}
+          />
+        )}
+        
+        {/* Content */}
+        {showContent && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="absolute inset-0 p-6 flex flex-col justify-between text-white"
+            style={{ transform: 'rotate(0deg)' }}
+          >
+            <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center">
+              <Icon className="w-7 h-7" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold mb-2">{title}</h3>
+              <p className="text-white/80 text-sm leading-relaxed">{description}</p>
+            </div>
+          </motion.div>
+        )}
       </div>
     </motion.div>
+  );
+};
+
+const FeaturesSection = () => {
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start end", "end start"]
+  });
+  
+  const [progress, setProgress] = useState(0);
+  
+  useMotionValueEvent(scrollYProgress, "change", (latest) => {
+    setProgress(latest);
+  });
+
+  const features = [
+    { 
+      color: "amber", 
+      icon: QrCode, 
+      title: "QR Check-in", 
+      description: "Guests scan, upload ID, and check themselves in. Zero queues." 
+    },
+    { 
+      color: "emerald", 
+      icon: Calendar, 
+      title: "Smart Bookings", 
+      description: "Manage reservations and room assignments from one place." 
+    },
+    { 
+      color: "rose", 
+      icon: Receipt, 
+      title: "GST Invoicing", 
+      description: "Auto-generate GST-compliant invoices instantly." 
+    },
+    { 
+      color: "violet", 
+      icon: BarChart3, 
+      title: "Live Analytics", 
+      description: "Track occupancy and revenue with visual reports." 
+    },
+  ];
+
+  // Calculate animation phases based on scroll
+  const normalizedProgress = Math.min(Math.max((progress - 0.1) / 0.6, 0), 1);
+  
+  // Phase 1: 0-0.3 - Outlines appear and rotate
+  // Phase 2: 0.3-0.6 - Fill with color
+  // Phase 3: 0.6-1.0 - Expand to cards
+  
+  const getShapeProps = (index: number) => {
+    const staggerDelay = index * 0.08;
+    const adjustedProgress = Math.max(0, normalizedProgress - staggerDelay);
+    
+    // Rotation: starts at 45deg (diamond), ends at 0deg (square)
+    const rotation = 45 - (Math.min(adjustedProgress / 0.4, 1) * 45);
+    
+    // Fill: starts at 0, fills from 0.2 to 0.6
+    const fillStart = 0.15;
+    const fillEnd = 0.5;
+    const fillProgress = Math.min(Math.max((adjustedProgress - fillStart) / (fillEnd - fillStart), 0), 1);
+    
+    // Scale: starts at 1, grows from 0.5 to 1.0
+    const scaleStart = 0.4;
+    const scale = 1 + Math.min(Math.max((adjustedProgress - scaleStart) / 0.4, 0), 1) * 0.5;
+    
+    // Show content when mostly complete
+    const showContent = adjustedProgress > 0.65;
+    
+    return { rotation, fillProgress, scale, showContent };
+  };
+
+  return (
+    <section ref={sectionRef} className="min-h-[200vh] relative" id="features">
+      <div className="sticky top-0 h-screen flex flex-col items-center justify-center py-20 overflow-hidden">
+        <AnimatedSection className="text-center mb-12 px-6">
+          <h2 className="text-4xl md:text-6xl font-black text-gray-900 leading-tight mb-4">
+            EaseInn isn't just software, it's your
+          </h2>
+          <h2 className="text-4xl md:text-6xl font-black leading-tight">
+            <span className="bg-gradient-to-r from-violet-600 to-pink-500 bg-clip-text text-transparent">
+              complete hotel command center.
+            </span>
+          </h2>
+        </AnimatedSection>
+
+        <div className="flex flex-wrap justify-center gap-6 md:gap-8 px-6 max-w-6xl mx-auto">
+          {features.map((feature, idx) => {
+            const props = getShapeProps(idx);
+            return (
+              <div 
+                key={feature.title} 
+                className="transition-all duration-700"
+                style={{
+                  width: props.showContent ? '240px' : '120px',
+                  height: props.showContent ? '320px' : '140px',
+                }}
+              >
+                <DiamondShape
+                  color={feature.color}
+                  icon={feature.icon}
+                  title={feature.title}
+                  description={feature.description}
+                  {...props}
+                />
+              </div>
+            );
+          })}
+        </div>
+        
+        {/* Scroll indicator */}
+        {normalizedProgress < 0.3 && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center text-gray-400"
+          >
+            <span className="text-sm mb-2">Scroll to explore</span>
+            <motion.div
+              animate={{ y: [0, 10, 0] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+            >
+              <ArrowRight className="w-5 h-5 rotate-90" />
+            </motion.div>
+          </motion.div>
+        )}
+      </div>
+    </section>
   );
 };
 
@@ -96,7 +290,6 @@ const MarqueeText = ({ text, direction = "left" }: { text: string; direction?: "
 
 export default function Landing() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [email, setEmail] = useState("");
   const heroRef = useRef(null);
   const { scrollYProgress } = useScroll({
     target: heroRef,
@@ -119,33 +312,6 @@ export default function Landing() {
       metaDescription.setAttribute('content', 'EaseInn transforms hotel operations with smart check-ins, QR self-service, GST billing, and real-time analytics. Built for Indian hotels.');
     }
   }, []);
-
-  const features = [
-    { 
-      color: "amber", 
-      icon: QrCode, 
-      title: "QR Check-in", 
-      description: "Guests scan, upload ID, and check themselves in. Zero queues, zero hassle." 
-    },
-    { 
-      color: "emerald", 
-      icon: Calendar, 
-      title: "Smart Bookings", 
-      description: "Manage reservations, availability, and room assignments from one dashboard." 
-    },
-    { 
-      color: "rose", 
-      icon: Receipt, 
-      title: "GST Invoicing", 
-      description: "Auto-generate GST-compliant invoices with proper tax calculations." 
-    },
-    { 
-      color: "violet", 
-      icon: BarChart3, 
-      title: "Live Analytics", 
-      description: "Track occupancy, revenue, and trends with beautiful visual reports." 
-    },
-  ];
 
   const stats = [
     { value: "500+", label: "Hotels Trust Us" },
@@ -327,26 +493,8 @@ export default function Landing() {
         <MarqueeText text="EASEINN" />
       </section>
 
-      {/* Value Proposition */}
-      <section className="py-24 bg-white">
-        <div className="container mx-auto px-6">
-          <AnimatedSection className="max-w-4xl mx-auto text-center mb-20">
-            <h2 className="text-4xl md:text-6xl font-black text-gray-900 leading-tight mb-6">
-              EaseInn isn't just software, it's your
-              <span className="bg-gradient-to-r from-violet-600 to-pink-500 bg-clip-text text-transparent"> complete hotel command center.</span>
-            </h2>
-            <p className="text-xl text-gray-500">
-              Built specifically for independent hotels, resorts, and boutique properties across India.
-            </p>
-          </AnimatedSection>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6" id="features">
-            {features.map((feature, idx) => (
-              <FeatureCard key={feature.title} {...feature} delay={idx * 0.1} />
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Features Section with Scroll Animation */}
+      <FeaturesSection />
 
       {/* Stats Section */}
       <section className="py-24 bg-gray-900 text-white relative overflow-hidden">
