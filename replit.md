@@ -1,6 +1,6 @@
 # EaseInn - Comprehensive Hotel Management Platform
 
-**Domain:** www.EaseInn.com
+**Domain:** www.easeinn.in
 
 This is a comprehensive B2B hotel management platform built as a full-stack web application. The system enables multi-property hotel operations with role-based access control, featuring a React frontend with Node.js/Express backend, PostgreSQL database, and Drizzle ORM for data operations.
 
@@ -46,7 +46,7 @@ The platform provides enterprise-level hotel management functionality including:
 - **Property Discovery Flow**: New DigiStay-inspired onboarding with Google Places integration
 
 ## Previous Changes (August 22, 2025)
-- **Platform Rebranding**: Updated to EaseInn with new domain www.EaseInn.com
+- **Platform Rebranding**: Updated to EaseInn with new domain www.easeinn.in
 - **SEO-Optimized URL Structure**: Comprehensive URL strategy with best practices
 - **Room Capacity Enforcement**: Backend validation prevents exceeding admin-set limits
 - **Guest Management**: Fixed view/edit buttons with detailed guest information dialogs

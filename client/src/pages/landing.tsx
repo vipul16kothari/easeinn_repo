@@ -545,7 +545,7 @@ export default function Landing() {
               <ul className="space-y-3 text-sm">
                 <li className="flex items-center space-x-2">
                   <Mail className="w-4 h-4" />
-                  <span>hello@easeinn.com</span>
+                  <span>hello@easeinn.in</span>
                 </li>
                 <li className="flex items-center space-x-2">
                   <Phone className="w-4 h-4" />
