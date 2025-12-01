@@ -55,8 +55,21 @@ app.use(apiLimiter);
 app.use('/api/auth', authLimiter);
 
 // CORS configuration for cookie support
+const allowedOrigins = [
+  'https://www.easeinn.in',
+  'https://easeinn.in',
+  'https://easeinn.vercel.app',
+  ...(process.env.ALLOWED_ORIGINS?.split(',') || []),
+];
+
 app.use(cors({
-  origin: isProduction ? process.env.ALLOWED_ORIGINS?.split(',') || true : true,
+  origin: isProduction ? (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, false);
+    }
+  } : true,
   credentials: true,
 }));
 
