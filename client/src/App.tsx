@@ -29,6 +29,7 @@ import SignupWithPayment from "./pages/signup-with-payment";
 import SignupPlaces from "./pages/signup-places";
 import SuperAdminDashboard from "./pages/superadmin-dashboard";
 import GuestCheckIn from "./pages/guest-checkin";
+import AuthCallback from "./pages/auth-callback";
 import Header from "./components/header";
 
 function Router() {
@@ -43,6 +44,7 @@ function Router() {
       <Route path="/signup/plans" component={SignupPlaces} />
       <Route path="/signup-old" component={SignupWithPayment} />
       <Route path="/checkin/:slug" component={GuestCheckIn} />
+      <Route path="/auth/callback" component={AuthCallback} />
       
       {/* Authenticated routes with header */}
       <Route path="/dashboard">

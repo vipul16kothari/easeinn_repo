@@ -1,11 +1,17 @@
-import { useEffect } from "react";
-import { Link } from "wouter";
+import { useEffect, useState } from "react";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Hotel, ArrowRight, Check } from "lucide-react";
+import { Hotel, ArrowRight, Check, Loader2 } from "lucide-react";
 import { SiGoogle } from "react-icons/si";
+import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 
 export default function Login() {
+  const [, setLocation] = useLocation();
+  const { signInWithGoogle, isAuthenticated, isLoading: authLoading } = useSupabaseAuth();
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     document.title = "Sign In - EaseInn Hotel Management";
     
@@ -15,8 +21,21 @@ export default function Login() {
     }
   }, []);
 
-  const handleGoogleLogin = () => {
-    window.location.href = "/api/login";
+  useEffect(() => {
+    if (isAuthenticated && !authLoading) {
+      setLocation("/dashboard");
+    }
+  }, [isAuthenticated, authLoading, setLocation]);
+
+  const handleGoogleLogin = async () => {
+    setIsSigningIn(true);
+    setError(null);
+    try {
+      await signInWithGoogle();
+    } catch (err) {
+      setError("Failed to sign in. Please try again.");
+      setIsSigningIn(false);
+    }
   };
 
   const benefits = [
@@ -48,14 +67,30 @@ export default function Login() {
             ))}
           </div>
 
+          {error && (
+            <div className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-lg">
+              {error}
+            </div>
+          )}
+
           <Button
             onClick={handleGoogleLogin}
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white py-6 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all"
+            disabled={isSigningIn || authLoading}
+            className="w-full bg-purple-600 hover:bg-purple-700 text-white py-6 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
             data-testid="button-google-login"
           >
-            <SiGoogle className="mr-3 h-5 w-5" />
-            Continue with Google
-            <ArrowRight className="ml-3 h-5 w-5" />
+            {isSigningIn ? (
+              <>
+                <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+                Signing in...
+              </>
+            ) : (
+              <>
+                <SiGoogle className="mr-3 h-5 w-5" />
+                Continue with Google
+                <ArrowRight className="ml-3 h-5 w-5" />
+              </>
+            )}
           </Button>
 
           <p className="text-center text-xs text-gray-500">
