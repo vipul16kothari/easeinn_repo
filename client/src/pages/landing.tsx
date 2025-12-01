@@ -74,10 +74,10 @@ const FeaturesSection = () => {
     <section className="py-24 bg-white" id="features">
       <div className="container mx-auto px-6">
         <AnimatedSection className="text-center mb-16">
-          <h2 className="text-3xl md:text-5xl font-black text-gray-900 leading-tight mb-4">
+          <h2 className="text-3xl md:text-4xl font-heading font-bold text-gray-900 leading-tight mb-4">
             EaseInn isn't just software, it's your
           </h2>
-          <h2 className="text-3xl md:text-5xl font-black leading-tight">
+          <h2 className="text-3xl md:text-4xl font-heading font-bold leading-tight">
             <span className="bg-gradient-to-r from-violet-600 to-pink-500 bg-clip-text text-transparent">
               complete hotel command center.
             </span>
@@ -188,7 +188,7 @@ export default function Landing() {
               <div className="w-12 h-12 bg-gradient-to-br from-violet-600 to-purple-500 rounded-2xl flex items-center justify-center shadow-lg shadow-violet-200">
                 <Hotel className="h-6 w-6 text-white" />
               </div>
-              <span className="text-3xl font-black text-gray-900 tracking-tight">EaseInn</span>
+              <span className="text-2xl font-heading font-bold text-gray-900 tracking-tight">EaseInn</span>
             </motion.div>
           </Link>
           
@@ -258,7 +258,7 @@ export default function Landing() {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.8, delay: 0.2 }}
             >
-              <h1 className="text-6xl md:text-8xl lg:text-9xl font-black text-gray-900 leading-[0.9] tracking-tight mb-8">
+              <h1 className="text-5xl md:text-7xl lg:text-8xl font-heading font-bold text-gray-900 leading-[0.95] tracking-tight mb-8">
                 Hotel ops,
                 <br />
                 <span className="bg-gradient-to-r from-violet-600 via-purple-500 to-pink-500 bg-clip-text text-transparent">
@@ -348,7 +348,7 @@ export default function Landing() {
         
         <div className="container mx-auto px-6 relative z-10">
           <AnimatedSection className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-black mb-4">
+            <h2 className="text-3xl md:text-4xl font-heading font-bold mb-4">
               Trusted by hotels that care about their guests
             </h2>
             <p className="text-gray-400 text-lg">Numbers that speak for themselves</p>
@@ -372,7 +372,7 @@ export default function Landing() {
         <div className="container mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <AnimatedSection>
-              <h2 className="text-4xl md:text-5xl font-black text-gray-900 leading-tight mb-8">
+              <h2 className="text-3xl md:text-4xl font-heading font-bold text-gray-900 leading-tight mb-6">
                 Why hotel owners
                 <br />
                 <span className="text-violet-600">love EaseInn</span>
@@ -423,27 +423,27 @@ export default function Landing() {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="py-24 bg-gray-50">
+      <section id="pricing" className="py-16 bg-gray-50">
         <div className="container mx-auto px-6">
-          <AnimatedSection className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-4">
+          <AnimatedSection className="text-center mb-8">
+            <h2 className="text-3xl md:text-4xl font-heading font-bold text-gray-900 mb-2">
               Simple, honest pricing
             </h2>
-            <p className="text-xl text-gray-500">Start free, upgrade when you're ready</p>
+            <p className="text-gray-500">Start free, upgrade when you're ready</p>
           </AnimatedSection>
 
-          <AnimatedSection delay={0.2} className="max-w-lg mx-auto">
-            <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100">
-              <div className="bg-gradient-to-r from-violet-600 to-purple-600 p-8 text-white text-center">
-                <div className="text-sm uppercase tracking-wider mb-2 text-violet-200">Professional Plan</div>
+          <AnimatedSection delay={0.2} className="max-w-md mx-auto">
+            <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+              <div className="bg-gradient-to-r from-violet-600 to-purple-600 p-5 text-white text-center">
+                <div className="text-xs uppercase tracking-wider mb-1 text-violet-200">Professional Plan</div>
                 <div className="flex items-baseline justify-center">
-                  <span className="text-5xl font-black">₹{pricingConfig?.hotelierPrice || 1999}</span>
-                  <span className="text-violet-200 ml-2">/month</span>
+                  <span className="text-4xl font-bold">₹{pricingConfig?.hotelierPrice || 1999}</span>
+                  <span className="text-violet-200 ml-1 text-sm">/month</span>
                 </div>
               </div>
               
-              <div className="p-8">
-                <ul className="space-y-4 mb-8">
+              <div className="p-5">
+                <ul className="space-y-2.5 mb-5">
                   {[
                     "Unlimited rooms & guests",
                     "QR code self check-in",
@@ -454,22 +454,22 @@ export default function Landing() {
                     "Priority email & chat support",
                     "Free setup assistance"
                   ].map((feature, idx) => (
-                    <li key={idx} className="flex items-center space-x-3">
-                      <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                      <span className="text-gray-700">{feature}</span>
+                    <li key={idx} className="flex items-center space-x-2">
+                      <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                      <span className="text-gray-700 text-sm">{feature}</span>
                     </li>
                   ))}
                 </ul>
                 
                 <Link href="/login">
                   <Button 
-                    className="w-full bg-gray-900 hover:bg-gray-800 text-white py-6 rounded-full text-lg font-semibold"
+                    className="w-full bg-gray-900 hover:bg-gray-800 text-white py-5 rounded-full font-semibold"
                     data-testid="button-pricing-cta"
                   >
                     Start 14-Day Free Trial
                   </Button>
                 </Link>
-                <p className="text-center text-gray-400 text-sm mt-4">No credit card required to start</p>
+                <p className="text-center text-gray-400 text-xs mt-3">No credit card required</p>
               </div>
             </div>
           </AnimatedSection>
@@ -485,7 +485,7 @@ export default function Landing() {
         
         <div className="container mx-auto px-6 relative z-10 text-center">
           <AnimatedSection>
-            <h2 className="text-4xl md:text-6xl font-black mb-6 leading-tight">
+            <h2 className="text-3xl md:text-5xl font-heading font-bold mb-5 leading-tight">
               Ready to transform
               <br />
               your hotel operations?
@@ -515,7 +515,7 @@ export default function Landing() {
                 <div className="w-10 h-10 bg-gradient-to-br from-violet-600 to-purple-500 rounded-xl flex items-center justify-center">
                   <Hotel className="h-5 w-5 text-white" />
                 </div>
-                <span className="text-2xl font-bold text-white">EaseInn</span>
+                <span className="text-2xl font-heading font-bold text-white">EaseInn</span>
               </div>
               <p className="text-sm leading-relaxed">
                 Smart hotel management software built for Indian hotels. Simplify operations, delight guests.
